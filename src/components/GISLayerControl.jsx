@@ -89,7 +89,7 @@ const GISLayerControl = ({ gisLayers, onLayerToggle }) => {
   };
 
   return (
-    <div className={`absolute top-64 left-4 z-[1000] rounded-lg shadow-lg backdrop-blur-sm
+    <div className={`absolute top-4 right-4 z-[1000] rounded-lg shadow-lg backdrop-blur-sm
       ${isDark ? 'bg-slate-900/90' : 'bg-white/90'}`}
       style={{ maxWidth: '280px' }}
     >
