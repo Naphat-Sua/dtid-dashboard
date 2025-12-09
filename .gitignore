@@ -24,3 +24,6 @@ dist-ssr
 *.sw?
 .vercel
 .env*.local
+
+# Large GeoJSON files (too big for GitHub)
+public/geojson/

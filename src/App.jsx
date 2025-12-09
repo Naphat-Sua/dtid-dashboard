@@ -6,7 +6,7 @@ import AdminPage from './components/AdminPage';
 import ThemeProvider from './components/ThemeProvider';
 import ThemeToggle from './components/ThemeToggle';
 import { useThemeStore } from './store/useStore';
-import { Shield, Clock, MapPin } from 'lucide-react';
+import { Shield, Clock, MapPin, Radio, AlertTriangle, Fingerprint } from 'lucide-react';
 
 // Error Boundary Component
 class ErrorBoundary extends React.Component {
@@ -27,9 +27,10 @@ class ErrorBoundary extends React.Component {
     if (this.state.hasError) {
       return (
         <div className="flex items-center justify-center h-screen bg-red-900 text-white p-8">
-          <div>
-            <h1 className="text-2xl font-bold mb-4">Something went wrong</h1>
-            <pre className="bg-red-800 p-4 rounded text-sm overflow-auto">
+          <div className="text-center">
+            <AlertTriangle className="w-16 h-16 mx-auto mb-4 text-red-300" />
+            <h1 className="text-2xl font-bold mb-4">System Error</h1>
+            <pre className="bg-red-800/50 p-4 rounded-lg text-sm overflow-auto max-w-lg text-left">
               {this.state.error?.toString()}
             </pre>
           </div>
@@ -62,6 +63,27 @@ function AppContent() {
     setShowHeatmap(prev => !prev);
   }, []);
 
+  // View titles and descriptions
+  const viewInfo = {
+    map: { 
+      title: 'Crime Mapping & Analysis', 
+      subtitle: 'GIS Intelligence Module',
+      icon: MapPin
+    },
+    network: { 
+      title: 'Criminal Network Analysis', 
+      subtitle: 'Link Analysis Module',
+      icon: Fingerprint
+    },
+    admin: { 
+      title: 'Data Management Center', 
+      subtitle: 'Administrative Module',
+      icon: Shield
+    }
+  };
+
+  const currentView = viewInfo[activeView];
+
   return (
     <div className={`flex h-screen w-screen ${isDark ? 'bg-slate-950 text-slate-100' : 'bg-gray-50 text-gray-900'}`}>
       {/* Sidebar */}
@@ -79,44 +101,51 @@ function AppContent() {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Top Bar */}
-        <header className={`${isDark ? 'bg-slate-900/80 border-slate-700' : 'bg-white/80 border-gray-200'} backdrop-blur-sm border-b px-6 py-3 flex items-center justify-between`}>
+        {/* Command Header */}
+        <header className={`command-header px-6 py-4 flex items-center justify-between
+          ${isDark ? 'bg-slate-900/95' : 'bg-white/95'} backdrop-blur-xl border-b
+          ${isDark ? 'border-slate-800' : 'border-gray-200'}`}>
+          
+          {/* Left Section - Title */}
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <Shield className={`w-5 h-5 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
-              <h2 className="text-lg font-semibold">
-                {activeView === 'map' && 'Crime Map - Chiang Rai Region'}
-                {activeView === 'network' && 'Criminal Network Analysis'}
-                {activeView === 'admin' && 'Admin Data Management'}
-              </h2>
+            <div className={`p-2.5 rounded-xl ${isDark ? 'bg-blue-600/20' : 'bg-blue-100'}`}>
+              <currentView.icon className={`w-5 h-5 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
             </div>
-            <span className={`text-xs px-2 py-1 rounded ${isDark ? 'text-slate-500 bg-slate-800' : 'text-gray-500 bg-gray-100'}`}>
-              {activeView === 'map' && 'GIS Module'}
-              {activeView === 'network' && 'Network Module'}
-              {activeView === 'admin' && 'Admin Module'}
-            </span>
+            <div>
+              <h2 className="text-lg font-semibold tracking-tight">{currentView.title}</h2>
+              <p className={`text-xs ${isDark ? 'text-slate-500' : 'text-gray-500'}`}>
+                {currentView.subtitle}
+              </p>
+            </div>
           </div>
           
-          <div className={`flex items-center gap-4 text-xs ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>
-            <div className="flex items-center gap-1.5">
-              <MapPin className="w-3 h-3" />
-              <span>Chiang Rai Province, Thailand</span>
+          {/* Right Section - Status */}
+          <div className="flex items-center gap-6">
+            {/* Location */}
+            <div className={`flex items-center gap-2 text-xs ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>
+              <MapPin className="w-3.5 h-3.5" />
+              <span>Chiang Rai Region</span>
             </div>
-            <div className="flex items-center gap-1.5">
-              <Clock className="w-3 h-3" />
-              <span>{new Date().toLocaleDateString('th-TH', { 
+            
+            {/* Time */}
+            <div className={`flex items-center gap-2 text-xs font-mono ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>
+              <Clock className="w-3.5 h-3.5" />
+              <span>{new Date().toLocaleDateString('en-US', { 
                 weekday: 'short',
-                year: 'numeric', 
                 month: 'short', 
                 day: 'numeric',
                 hour: '2-digit',
                 minute: '2-digit'
               })}</span>
             </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-              <span>System Online</span>
+
+            {/* System Status */}
+            <div className="status-indicator status-online">
+              <Radio className="w-3 h-3 animate-pulse" />
+              <span>ONLINE</span>
             </div>
+
+            {/* Theme Toggle */}
             <ThemeToggle />
           </div>
         </header>
@@ -146,16 +175,26 @@ function AppContent() {
         </main>
 
         {/* Bottom Status Bar */}
-        <footer className={`${isDark ? 'bg-slate-900/80 border-slate-700 text-slate-500' : 'bg-white/80 border-gray-200 text-gray-500'} border-t px-6 py-2 flex items-center justify-between text-xs`}>
-          <div className="flex items-center gap-4">
-            <span>DTID Dashboard v1.0</span>
-            <span className={isDark ? 'text-slate-600' : 'text-gray-300'}>|</span>
-            <span>Narcotics Control Bureau - Thailand</span>
+        <footer className={`px-6 py-2.5 flex items-center justify-between text-xs border-t
+          ${isDark ? 'bg-slate-900/90 border-slate-800 text-slate-500' : 'bg-white/90 border-gray-200 text-gray-500'}`}>
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-2">
+              <Shield className="w-3.5 h-3.5 text-blue-500" />
+              <span className="font-semibold">DTID Command Center</span>
+              <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${isDark ? 'bg-slate-800 text-slate-400' : 'bg-gray-100 text-gray-500'}`}>v2.0</span>
+            </div>
+            <span className={isDark ? 'text-slate-700' : 'text-gray-300'}>|</span>
+            <span>Narcotics Suppression Bureau • Royal Thai Police</span>
           </div>
-          <div className="flex items-center gap-4">
-            <span>Data Classification: <span className="text-yellow-500">CONFIDENTIAL</span></span>
-            <span className={isDark ? 'text-slate-600' : 'text-gray-300'}>|</span>
-            <span>Last Sync: Just now</span>
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-2">
+              <span>Classification:</span>
+              <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-500 font-semibold border border-amber-500/30">
+                CONFIDENTIAL
+              </span>
+            </div>
+            <span className={isDark ? 'text-slate-700' : 'text-gray-300'}>|</span>
+            <span className="font-mono">Last Sync: {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</span>
           </div>
         </footer>
       </div>

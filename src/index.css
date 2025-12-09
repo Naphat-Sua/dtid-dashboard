@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 @import "tailwindcss";
 @import "leaflet/dist/leaflet.css";
 
@@ -15,50 +16,67 @@
 }
 
 /* ============================================
-   DARK THEME (War Room Aesthetic)
+   DARK THEME (Police Command Center)
    ============================================ */
 .dark {
   color-scheme: dark;
-  --bg-primary: #0f172a;
-  --bg-secondary: #1e293b;
-  --bg-tertiary: #334155;
-  --text-primary: #e2e8f0;
+  --bg-primary: #030712;
+  --bg-secondary: #0f172a;
+  --bg-tertiary: #1e293b;
+  --bg-card: #111827;
+  --text-primary: #f1f5f9;
   --text-secondary: #94a3b8;
   --text-muted: #64748b;
-  --border-color: #334155;
-  --accent-primary: #06b6d4; /* Cyan */
-  --accent-secondary: #f59e0b; /* Amber */
-  --glass-bg: rgba(30, 41, 59, 0.8);
-  --scrollbar-track: #1e293b;
-  --scrollbar-thumb: #475569;
+  --border-color: #1e293b;
+  --border-accent: #334155;
+  --accent-primary: #3b82f6; /* Police Blue */
+  --accent-secondary: #eab308; /* Warning Yellow */
+  --accent-danger: #ef4444;
+  --accent-success: #22c55e;
+  --glass-bg: rgba(15, 23, 42, 0.85);
+  --scrollbar-track: #0f172a;
+  --scrollbar-thumb: #334155;
+  --glow-primary: rgba(59, 130, 246, 0.3);
+  --glow-danger: rgba(239, 68, 68, 0.3);
 }
 
 .dark body {
   background-color: var(--bg-primary);
+  background-image: 
+    radial-gradient(ellipse at top, rgba(59, 130, 246, 0.05) 0%, transparent 50%),
+    radial-gradient(ellipse at bottom right, rgba(139, 92, 246, 0.03) 0%, transparent 50%);
   color: var(--text-primary);
 }
 
 /* ============================================
-   LIGHT THEME (Government/Professional)
+   LIGHT THEME (Official Government)
    ============================================ */
 .light {
   color-scheme: light;
   --bg-primary: #f8fafc;
   --bg-secondary: #ffffff;
-  --bg-tertiary: #e2e8f0;
-  --text-primary: #1e293b;
+  --bg-tertiary: #f1f5f9;
+  --bg-card: #ffffff;
+  --text-primary: #0f172a;
   --text-secondary: #475569;
-  --text-muted: #94a3b8;
-  --border-color: #cbd5e1;
-  --accent-primary: #2563eb; /* Blue */
+  --text-muted: #64748b;
+  --border-color: #e2e8f0;
+  --border-accent: #cbd5e1;
+  --accent-primary: #1d4ed8; /* Official Blue */
   --accent-secondary: #0891b2; /* Cyan */
-  --glass-bg: rgba(255, 255, 255, 0.9);
-  --scrollbar-track: #e2e8f0;
+  --accent-danger: #dc2626;
+  --accent-success: #16a34a;
+  --glass-bg: rgba(255, 255, 255, 0.95);
+  --scrollbar-track: #f1f5f9;
   --scrollbar-thumb: #94a3b8;
+  --glow-primary: rgba(29, 78, 216, 0.15);
+  --glow-danger: rgba(220, 38, 38, 0.15);
 }
 
 .light body {
   background-color: var(--bg-primary);
+  background-image: 
+    linear-gradient(180deg, rgba(241, 245, 249, 0.8) 0%, rgba(248, 250, 252, 1) 100%);
   color: var(--text-primary);
 }
 
@@ -75,24 +93,168 @@ body {
 }
 
 /* ============================================
+   TYPOGRAPHY
+   ============================================ */
+.font-mono {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+.text-display {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.text-label {
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* ============================================
    CUSTOM SCROLLBAR
    ============================================ */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
   background: var(--scrollbar-track);
+  border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb {
   background: var(--scrollbar-thumb);
-  border-radius: 3px;
+  border-radius: 4px;
+  border: 2px solid var(--scrollbar-track);
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-muted);
+}
+
+/* ============================================
+   POLICE/LAW ENFORCEMENT COMPONENTS
+   ============================================ */
+
+/* Command Header Bar */
+.command-header {
+  background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 100%);
+  border-bottom: 1px solid var(--border-color);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+}
+
+/* Tactical Card */
+.tactical-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  transition: all 0.2s ease;
+}
+
+.tactical-card:hover {
+  border-color: var(--accent-primary);
+  box-shadow: 0 8px 30px var(--glow-primary);
+}
+
+/* Alert Card */
+.alert-card {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(239, 68, 68, 0.05) 100%);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-left: 4px solid #ef4444;
+}
+
+/* Success Card */
+.success-card {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(34, 197, 94, 0.05) 100%);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  border-left: 4px solid #22c55e;
+}
+
+/* Warning Card */
+.warning-card {
+  background: linear-gradient(135deg, rgba(234, 179, 8, 0.1) 0%, rgba(234, 179, 8, 0.05) 100%);
+  border: 1px solid rgba(234, 179, 8, 0.3);
+  border-left: 4px solid #eab308;
+}
+
+/* Info Card */
+.info-card {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(59, 130, 246, 0.05) 100%);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-left: 4px solid #3b82f6;
+}
+
+/* Metric Display */
+.metric-value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1;
+  background: linear-gradient(135deg, var(--text-primary) 0%, var(--text-secondary) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Status Indicator */
+.status-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.status-online {
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.status-offline {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.status-warning {
+  background: rgba(234, 179, 8, 0.15);
+  color: #eab308;
+  border: 1px solid rgba(234, 179, 8, 0.3);
+}
+
+/* Priority Levels */
+.priority-critical {
+  background: linear-gradient(135deg, #991b1b 0%, #7f1d1d 100%);
+  color: white;
+  animation: pulse-critical 2s ease-in-out infinite;
+}
+
+.priority-high {
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+  color: white;
+}
+
+.priority-medium {
+  background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+  color: white;
+}
+
+.priority-low {
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+  color: white;
+}
+
+@keyframes pulse-critical {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
 }
 
 /* ============================================
@@ -415,4 +577,273 @@ body {
   border-color: #3b82f6;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
   outline: none;
+}
+
+/* ============================================
+   ENHANCED BUTTONS
+   ============================================ */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-radius: 0.75rem;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  border: none;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
+  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.35);
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.45);
+  transform: translateY(-1px);
+}
+
+.btn-danger {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+  box-shadow: 0 4px 15px rgba(239, 68, 68, 0.35);
+}
+
+.btn-danger:hover {
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+  box-shadow: 0 6px 20px rgba(239, 68, 68, 0.45);
+  transform: translateY(-1px);
+}
+
+.btn-success {
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  color: white;
+  box-shadow: 0 4px 15px rgba(34, 197, 94, 0.35);
+}
+
+.btn-success:hover {
+  background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+  box-shadow: 0 6px 20px rgba(34, 197, 94, 0.45);
+  transform: translateY(-1px);
+}
+
+.dark .btn-ghost {
+  background: transparent;
+  color: #94a3b8;
+  border: 1px solid #334155;
+}
+
+.dark .btn-ghost:hover {
+  background: #1e293b;
+  color: white;
+  border-color: #475569;
+}
+
+.light .btn-ghost {
+  background: transparent;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+}
+
+.light .btn-ghost:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+  border-color: #cbd5e1;
+}
+
+/* ============================================
+   DATA TABLES
+   ============================================ */
+.data-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.dark .data-table th {
+  background: #1e293b;
+  color: #94a3b8;
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  padding: 0.75rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid #334155;
+}
+
+.dark .data-table td {
+  padding: 0.875rem 1rem;
+  border-bottom: 1px solid #1e293b;
+  color: #e2e8f0;
+  font-size: 0.875rem;
+}
+
+.dark .data-table tr:hover td {
+  background: rgba(59, 130, 246, 0.05);
+}
+
+.light .data-table th {
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  padding: 0.75rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.light .data-table td {
+  padding: 0.875rem 1rem;
+  border-bottom: 1px solid #f1f5f9;
+  color: #1e293b;
+  font-size: 0.875rem;
+}
+
+.light .data-table tr:hover td {
+  background: rgba(59, 130, 246, 0.03);
+}
+
+/* ============================================
+   MAP OVERLAYS & CONTROLS
+   ============================================ */
+.map-control-panel {
+  backdrop-filter: blur(16px);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+}
+
+.dark .map-control-panel {
+  background: rgba(15, 23, 42, 0.9);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.light .map-control-panel {
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+/* ============================================
+   SUSPECT/PERSON CARDS
+   ============================================ */
+.person-card {
+  border-radius: 12px;
+  padding: 1rem;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.dark .person-card {
+  background: #111827;
+  border: 1px solid #1e293b;
+}
+
+.dark .person-card:hover {
+  border-color: #3b82f6;
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.15);
+}
+
+.dark .person-card.selected {
+  border-color: #3b82f6;
+  background: rgba(59, 130, 246, 0.1);
+  box-shadow: 0 0 25px rgba(59, 130, 246, 0.2);
+}
+
+.light .person-card {
+  background: white;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.light .person-card:hover {
+  border-color: #3b82f6;
+  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.1);
+}
+
+.light .person-card.selected {
+  border-color: #3b82f6;
+  background: rgba(59, 130, 246, 0.05);
+}
+
+/* Risk Level Indicators */
+.risk-critical {
+  background: linear-gradient(135deg, #991b1b, #7f1d1d);
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.risk-high {
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+}
+
+.risk-medium {
+  background: linear-gradient(135deg, #d97706, #b45309);
+}
+
+.risk-low {
+  background: linear-gradient(135deg, #16a34a, #15803d);
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(153, 27, 27, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(153, 27, 27, 0.8);
+  }
+}
+
+/* ============================================
+   LOADING STATES
+   ============================================ */
+.skeleton {
+  animation: skeleton-loading 1.5s ease-in-out infinite;
+}
+
+.dark .skeleton {
+  background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
+  background-size: 200% 100%;
+}
+
+.light .skeleton {
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+}
+
+@keyframes skeleton-loading {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ============================================
+   CUSTOM PERSON ICON FOR MAP
+   ============================================ */
+.custom-person-icon > div {
+  transition: transform 0.2s ease;
+}
+
+.custom-person-icon:hover > div {
+  transform: scale(1.15);
+}
+
+/* ============================================
+   RESPONSIVE ADJUSTMENTS
+   ============================================ */
+@media (max-width: 768px) {
+  .command-header {
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1rem;
+  }
+  
+  .status-indicator {
+    font-size: 0.625rem;
+    padding: 3px 8px;
+  }
 }

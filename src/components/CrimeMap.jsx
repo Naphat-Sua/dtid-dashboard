@@ -13,6 +13,9 @@ import {
   getClassificationLabel,
   performKDE 
 } from '../utils/spatialAnalysis';
+import GISLayerControl, { GISLayers } from './GISLayerControl';
+import { loadAllLayers } from '../services/gisService';
+import { getDemoGISLayers } from '../data/demoGISData';
 
 // Fix for default marker icons in React-Leaflet
 delete L.Icon.Default.prototype._getIconUrl;
@@ -410,9 +413,63 @@ const CrimeMap = ({ flyToLocation, showHeatmap = true, onMarkerClick }) => {
   const [vizMode, setVizMode] = useState('heatmap'); // 'heatmap' | 'kde' | 'hotspot' | 'all'
   const [showStats, setShowStats] = useState(true);
   
+  // GIS layers state
+  const [gisLayers, setGisLayers] = useState(null);
+  const [gisLayersLoading, setGisLayersLoading] = useState(false);
+  const [visibleGISLayers, setVisibleGISLayers] = useState({
+    schools: false,
+    tambonCentroids: false,
+    roads: false,
+    provinces: true,
+    amphoe: false,
+    forests: false
+  });
+  
   // Center on Chiang Rai
   const defaultCenter = [20.15, 99.95];
   const defaultZoom = 10;
+
+  // Load GIS layers on mount
+  useEffect(() => {
+    const loadGISLayers = async () => {
+      try {
+        setGisLayersLoading(true);
+        
+        // Try to load GIS layers from GeoJSON files
+        // Falls back to demo data if files don't exist
+        try {
+          const layers = await loadAllLayers();
+          if (layers.points || layers.lines || layers.polygons) {
+            setGisLayers(layers);
+            console.log('GIS Layers loaded from files:', layers);
+            return;
+          }
+        } catch (e) {
+          console.log('GeoJSON files not available, using demo data');
+        }
+        
+        // Use demo data as fallback
+        const demoLayers = getDemoGISLayers();
+        setGisLayers(demoLayers);
+        console.log('Using demo GIS Layers:', demoLayers);
+      } catch (error) {
+        console.error('Failed to load GIS layers:', error);
+        const demoLayers = getDemoGISLayers();
+        setGisLayers(demoLayers);
+      } finally {
+        setGisLayersLoading(false);
+      }
+    };
+
+    loadGISLayers();
+  }, []);
+
+  const handleGISLayerToggle = (layerName, isVisible) => {
+    setVisibleGISLayers(prev => ({
+      ...prev,
+      [layerName]: isVisible
+    }));
+  };
 
   const caseLocations = useMemo(() => getCaseLocations(), [getCaseLocations]);
   const personLocations = useMemo(() => getPersonLocations(), [getPersonLocations]);
@@ -535,6 +592,9 @@ const CrimeMap = ({ flyToLocation, showHeatmap = true, onMarkerClick }) => {
           url={tileConfig.url}
         />
 
+        {/* GIS Layers - Point, Line, Polygon */}
+        <GISLayers gisLayers={gisLayers} visibleLayers={visibleGISLayers} />
+
         {/* Visualization Layers based on mode */}
         {(vizMode === 'heatmap' || vizMode === 'all') && showHeatmap && (
           <HeatmapLayer points={heatmapPoints} />
@@ -625,6 +685,9 @@ const CrimeMap = ({ flyToLocation, showHeatmap = true, onMarkerClick }) => {
           </Marker>
         ))}
       </MapContainer>
+
+      {/* GIS Layer Control Panel */}
+      <GISLayerControl gisLayers={gisLayers} onLayerToggle={handleGISLayerToggle} />
 
       {/* Visualization Mode Selector */}
       <div className={`absolute top-4 left-4 z-[1000] rounded-lg p-2 shadow-lg backdrop-blur-sm
