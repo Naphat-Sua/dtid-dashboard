@@ -1,0 +1,8 @@
+# Large GeoJSON files
+public/geojson/
+
+# Scripts
+scripts/
+
+# Local env files
+.env.local
