@@ -1,8 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { GeoJSON, Marker, Popup, Polyline, Polygon } from 'react-leaflet';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { GeoJSON, Marker, Popup, Polyline, Polygon, CircleMarker, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import { Layers, Eye, EyeOff, MapPin, Route, Square } from 'lucide-react';
+import { Layers, Eye, EyeOff, MapPin, Route, Square, AlertCircle } from 'lucide-react';
 import { useThemeStore } from '../store/useStore';
+
+// Performance limits
+const MAX_POINTS = 500;
+const MAX_LINES = 1000;
+const MAX_POLYGONS = 200;
 
 /**
  * GIS Layer Control Component
@@ -224,34 +229,23 @@ const LayerToggleButton = ({ layerKey, layer, isVisible, onToggle, isDark }) => 
 };
 
 /**
- * GIS Layers Renderer
- * Renders point, line, and polygon layers on the map
+ * GIS Layers Renderer - OPTIMIZED for performance
+ * Uses Canvas rendering and feature limits for large datasets
  */
 export const GISLayers = ({ gisLayers, visibleLayers }) => {
   const { theme } = useThemeStore();
   const isDark = theme === 'dark';
+  const map = useMap();
+  const canvasRendererRef = useRef(null);
+
+  // Create canvas renderer for better performance
+  useEffect(() => {
+    if (!canvasRendererRef.current) {
+      canvasRendererRef.current = L.canvas({ padding: 0.5 });
+    }
+  }, []);
 
   if (!gisLayers) return null;
-
-  // Point layer styles
-  const createPointIcon = (color) => {
-    return L.divIcon({
-      className: 'custom-point-icon',
-      html: `
-        <div style="
-          width: 8px;
-          height: 8px;
-          background: ${color};
-          border: 2px solid white;
-          border-radius: 50%;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-        "></div>
-      `,
-      iconSize: [8, 8],
-      iconAnchor: [4, 4],
-      popupAnchor: [0, -4],
-    });
-  };
 
   // Polygon style function
   const getPolygonStyle = (layerType) => {
@@ -261,21 +255,24 @@ export const GISLayers = ({ gisLayers, visibleLayers }) => {
         fillOpacity: 0.1,
         color: '#059669',
         weight: 2,
-        opacity: 0.8
+        opacity: 0.8,
+        renderer: canvasRendererRef.current
       },
       amphoe: {
         fillColor: '#0ea5e9',
         fillOpacity: 0.1,
         color: '#0284c7',
         weight: 1.5,
-        opacity: 0.7
+        opacity: 0.7,
+        renderer: canvasRendererRef.current
       },
       forests: {
         fillColor: '#059669',
         fillOpacity: 0.3,
         color: '#047857',
         weight: 1,
-        opacity: 0.6
+        opacity: 0.6,
+        renderer: canvasRendererRef.current
       }
     };
     return styles[layerType] || styles.provinces;
@@ -287,111 +284,108 @@ export const GISLayers = ({ gisLayers, visibleLayers }) => {
       roads: {
         color: '#f59e0b',
         weight: 2,
-        opacity: 0.7
+        opacity: 0.7,
+        renderer: canvasRendererRef.current
       }
     };
     return styles[layerType] || styles.roads;
   };
 
-  // Render point features
+  // Limit features for performance
+  const limitFeatures = (featureCollection, maxFeatures) => {
+    if (!featureCollection?.features) return featureCollection;
+    if (featureCollection.features.length <= maxFeatures) return featureCollection;
+    
+    return {
+      ...featureCollection,
+      features: featureCollection.features.slice(0, maxFeatures)
+    };
+  };
+
+  // Render point features using CircleMarker (faster than Marker)
   const renderPointLayer = (features, layerKey, color) => {
     if (!features || !visibleLayers?.[layerKey]) return null;
 
-    return features.map((feature, idx) => {
-      if (feature.geometry.type !== 'Point') return null;
+    // Limit points for performance
+    const limitedFeatures = features.slice(0, MAX_POINTS);
+
+    return limitedFeatures.map((feature, idx) => {
+      if (feature.geometry?.type !== 'Point') return null;
       
       const [lng, lat] = feature.geometry.coordinates;
+      if (!lat || !lng || isNaN(lat) || isNaN(lng)) return null;
+      
       const properties = feature.properties || {};
 
       return (
-        <Marker
+        <CircleMarker
           key={`${layerKey}-${idx}`}
-          position={[lat, lng]}
-          icon={createPointIcon(color)}
+          center={[lat, lng]}
+          radius={4}
+          pathOptions={{
+            fillColor: color,
+            fillOpacity: 0.8,
+            color: 'white',
+            weight: 1,
+            opacity: 1
+          }}
         >
           <Popup>
-            <div className={`min-w-[200px] ${isDark ? 'text-slate-200' : 'text-gray-800'}`}>
+            <div className="min-w-[180px]">
               <div className="font-semibold mb-2 text-sm">
-                {properties.NAME || properties.TAMBON_T || 'Point Feature'}
+                {properties.NAME || properties.TAMBON_T || properties.name || 'Point'}
               </div>
               <div className="space-y-1 text-xs">
-                {Object.entries(properties).slice(0, 5).map(([key, value]) => (
+                {Object.entries(properties).slice(0, 3).map(([key, value]) => (
                   <div key={key} className="flex justify-between gap-2">
                     <span className="text-slate-400">{key}:</span>
-                    <span className="font-medium">{String(value)}</span>
+                    <span className="font-medium">{String(value).slice(0, 30)}</span>
                   </div>
                 ))}
               </div>
             </div>
           </Popup>
-        </Marker>
+        </CircleMarker>
       );
     });
   };
 
-  // Render polygon layer with GeoJSON
+  // Render polygon layer with GeoJSON (limited features)
   const renderPolygonLayer = (featureCollection, layerKey) => {
     if (!featureCollection || !visibleLayers?.[layerKey]) return null;
 
+    const limitedData = limitFeatures(featureCollection, MAX_POLYGONS);
+
     return (
       <GeoJSON
-        key={`${layerKey}-${Date.now()}`}
-        data={featureCollection}
+        key={`${layerKey}-${visibleLayers[layerKey]}`}
+        data={limitedData}
         style={getPolygonStyle(layerKey)}
         onEachFeature={(feature, layer) => {
           const properties = feature.properties || {};
-          layer.bindPopup(`
-            <div style="min-width: 200px;">
-              <div style="font-weight: 600; margin-bottom: 8px; font-size: 14px;">
-                ${properties.ADM1_EN || properties.PROV_NAM_E || properties.name || 'Polygon Feature'}
-              </div>
-              <div style="font-size: 12px;">
-                ${Object.entries(properties)
-                  .slice(0, 5)
-                  .map(([key, value]) => `
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                      <span style="color: #94a3b8;">${key}:</span>
-                      <span style="font-weight: 500;">${String(value)}</span>
-                    </div>
-                  `)
-                  .join('')}
-              </div>
-            </div>
-          `);
+          const name = properties.ADM1_EN || properties.ADM2_EN || properties.PROV_NAM_E || 
+                       properties.NAME || properties.name || 'Feature';
+          layer.bindPopup(`<div style="font-weight:600;">${name}</div>`);
         }}
       />
     );
   };
 
-  // Render line layer with GeoJSON
+  // Render line layer with GeoJSON (limited features)
   const renderLineLayer = (featureCollection, layerKey) => {
     if (!featureCollection || !visibleLayers?.[layerKey]) return null;
 
+    const limitedData = limitFeatures(featureCollection, MAX_LINES);
+
     return (
       <GeoJSON
-        key={`${layerKey}-${Date.now()}`}
-        data={featureCollection}
+        key={`${layerKey}-${visibleLayers[layerKey]}`}
+        data={limitedData}
         style={getLineStyle(layerKey)}
         onEachFeature={(feature, layer) => {
           const properties = feature.properties || {};
-          layer.bindPopup(`
-            <div style="min-width: 200px;">
-              <div style="font-weight: 600; margin-bottom: 8px; font-size: 14px;">
-                ${properties.NAME || properties.name || 'Line Feature'}
-              </div>
-              <div style="font-size: 12px;">
-                ${Object.entries(properties)
-                  .slice(0, 5)
-                  .map(([key, value]) => `
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                      <span style="color: #94a3b8;">${key}:</span>
-                      <span style="font-weight: 500;">${String(value)}</span>
-                    </div>
-                  `)
-                  .join('')}
-              </div>
-            </div>
-          `);
+          const name = properties.NAME || properties.name || 'Road';
+          layer.bindPopup(`<div style="font-weight:600;">${name}</div>`);
         }}
       />
     );
@@ -399,7 +393,7 @@ export const GISLayers = ({ gisLayers, visibleLayers }) => {
 
   return (
     <>
-      {/* Point Layers */}
+      {/* Point Layers - using CircleMarker for performance */}
       {gisLayers.points?.schools && 
         renderPointLayer(gisLayers.points.schools.features, 'schools', '#3b82f6')}
       {gisLayers.points?.tambonCentroids && 
