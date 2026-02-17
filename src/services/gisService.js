@@ -40,6 +40,13 @@ export async function loadPointLayers() {
   } catch (err) {
     console.warn('Could not load tambon centroids:', err);
   }
+
+  try {
+    pointLayers.policeStations = await loadGeoJSON('/geojson/point/police-stations.json');
+    console.log('Loaded police stations:', pointLayers.policeStations?.features?.length || 0, 'features');
+  } catch (err) {
+    console.warn('Could not load police stations:', err);
+  }
   
   return pointLayers;
 }
@@ -69,7 +76,7 @@ export async function loadPolygonLayers() {
   const polygonLayers = {};
   
   try {
-    polygonLayers.provinces = await loadGeoJSON('/geojson/polygon/provinces.json');
+    polygonLayers.provinces = await loadGeoJSON('/geojson/polygon/thailand-provinces.json');
     console.log('Loaded provinces:', polygonLayers.provinces?.features?.length || 0, 'features');
   } catch (err) {
     console.warn('Could not load provinces:', err);
@@ -87,6 +94,13 @@ export async function loadPolygonLayers() {
     console.log('Loaded amphoe:', polygonLayers.amphoe?.features?.length || 0, 'features');
   } catch (err) {
     console.warn('Could not load amphoe:', err);
+  }
+
+  try {
+    polygonLayers.policeJurisdictions = await loadGeoJSON('/geojson/polygon/police-jurisdictions.json');
+    console.log('Loaded police jurisdictions:', polygonLayers.policeJurisdictions?.features?.length || 0, 'features');
+  } catch (err) {
+    console.warn('Could not load police jurisdictions:', err);
   }
   
   return polygonLayers;

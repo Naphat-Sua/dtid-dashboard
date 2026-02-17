@@ -1,12 +1,29 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, Suspense, lazy } from 'react';
 import Sidebar from './components/Sidebar';
-import CrimeMap from './components/CrimeMap';
-import NetworkGraph from './components/NetworkGraph';
-import AdminPage from './components/AdminPage';
 import ThemeProvider from './components/ThemeProvider';
 import ThemeToggle from './components/ThemeToggle';
-import { useThemeStore } from './store/useStore';
-import { Shield, Clock, MapPin, Radio, AlertTriangle, Fingerprint } from 'lucide-react';
+import { Shield, Clock, MapPin, Radio, AlertTriangle, Fingerprint, Upload } from 'lucide-react';
+
+// ── Lazy-loaded heavy view components ──────────────────────
+// CrimeMap (814 lines + leaflet.heat + spatialAnalysis)
+// NetworkGraph (512 lines + D3)
+// AdminPage (820 lines + forms)
+// CsvUploader (modal, rarely opened)
+const CrimeMap = lazy(() => import('./components/CrimeMap'));
+const NetworkGraph = lazy(() => import('./components/NetworkGraph'));
+const AdminPage = lazy(() => import('./components/AdminPage'));
+const CsvUploader = lazy(() => import('./components/CsvUploader'));
+
+// Lightweight loading spinner matching the glass design system
+const ViewLoader = () => (
+  <div className="flex items-center justify-center h-full w-full" style={{ background: 'var(--bg-void)' }}>
+    <div className="flex flex-col items-center gap-3">
+      <div className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin"
+        style={{ borderColor: 'var(--accent-blue)', borderTopColor: 'transparent' }} />
+      <span className="text-xs font-medium" style={{ color: 'var(--text-tertiary)' }}>Loading module…</span>
+    </div>
+  </div>
+);
 
 // Error Boundary Component
 class ErrorBoundary extends React.Component {
@@ -42,13 +59,11 @@ class ErrorBoundary extends React.Component {
 }
 
 function AppContent() {
-  const { theme } = useThemeStore();
-  const isDark = theme === 'dark';
-  
   const [activeView, setActiveView] = useState('map');
   const [flyToLocation, setFlyToLocation] = useState(null);
   const [selectedPersonId, setSelectedPersonId] = useState(null);
   const [showHeatmap, setShowHeatmap] = useState(true);
+  const [showCsvUploader, setShowCsvUploader] = useState(false);
 
   const handleFlyTo = useCallback((location) => {
     setFlyToLocation(location);
@@ -63,30 +78,94 @@ function AppContent() {
     setShowHeatmap(prev => !prev);
   }, []);
 
-  // View titles and descriptions
   const viewInfo = {
-    map: { 
-      title: 'Crime Mapping & Analysis', 
-      subtitle: 'GIS Intelligence Module',
-      icon: MapPin
-    },
-    network: { 
-      title: 'Criminal Network Analysis', 
-      subtitle: 'Link Analysis Module',
-      icon: Fingerprint
-    },
-    admin: { 
-      title: 'Data Management Center', 
-      subtitle: 'Administrative Module',
-      icon: Shield
-    }
+    map: { title: 'Crime Mapping & Analysis', subtitle: 'GIS Intelligence', icon: MapPin },
+    network: { title: 'Criminal Network Analysis', subtitle: 'Link Analysis', icon: Fingerprint },
+    admin: { title: 'Data Management Center', subtitle: 'Administration', icon: Shield },
   };
-
   const currentView = viewInfo[activeView];
 
   return (
-    <div className={`flex h-screen w-screen ${isDark ? 'bg-slate-950 text-slate-100' : 'bg-gray-50 text-gray-900'}`}>
-      {/* Sidebar */}
+    <div className="relative h-screen w-screen overflow-hidden" style={{ color: 'var(--text-primary)' }}>
+
+      {/* ====== LAYER 0: FULL-SCREEN MAP BACKGROUND ====== */}
+      <div className="absolute inset-0 z-0">
+        <ErrorBoundary>
+          <Suspense fallback={<ViewLoader />}>
+            {activeView === 'map' && (
+              <CrimeMap
+                flyToLocation={flyToLocation}
+                showHeatmap={showHeatmap}
+                onMarkerClick={(loc) => console.log('Marker clicked:', loc)}
+              />
+            )}
+            {activeView === 'network' && (
+              <NetworkGraph
+                onPersonSelect={handlePersonSelect}
+                selectedPersonId={selectedPersonId}
+              />
+            )}
+            {activeView === 'admin' && (
+              <div className="w-full h-full overflow-y-auto admin-content-area" style={{ background: 'var(--bg-void)' }}>
+                <AdminPage />
+              </div>
+            )}
+          </Suspense>
+        </ErrorBoundary>
+      </div>
+
+      {/* ====== LAYER 1: FLOATING UI OVERLAY ====== */}
+
+      {/* Top Bar — Levitating glass header */}
+      <header className="floating-header">
+        {/* Living gradient edge */}
+        <div className="absolute top-0 left-0 right-0 h-[2px] rounded-full overflow-hidden">
+          <div className="w-full h-full animate-gradient" style={{ background: 'var(--gradient-siri)', backgroundSize: '200% 100%' }} />
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-xl" style={{ background: 'var(--glass-regular)' }}>
+            <currentView.icon className="w-4 h-4" style={{ color: 'var(--accent-blue)' }} />
+          </div>
+          <div>
+            <h2 className="text-sm font-semibold" style={{ letterSpacing: '-0.02em' }}>{currentView.title}</h2>
+            <p className="text-[10px] font-medium" style={{ color: 'var(--text-tertiary)' }}>{currentView.subtitle}</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="hidden md:flex items-center gap-1.5 text-[11px] font-medium" style={{ color: 'var(--text-tertiary)' }}>
+            <MapPin className="w-3 h-3" />
+            <span>Chiang Rai</span>
+          </div>
+
+          <div className="hidden lg:flex items-center gap-1.5 text-[11px] font-mono" style={{ color: 'var(--text-tertiary)' }}>
+            <Clock className="w-3 h-3" />
+            <span>{new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+          </div>
+
+          <button
+            onClick={() => setShowCsvUploader(true)}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] font-semibold transition-all duration-300"
+            style={{ background: 'var(--glass-regular)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)' }}
+            onMouseOver={e => { e.currentTarget.style.background = 'var(--accent-blue)'; e.currentTarget.style.color = 'white'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(10, 132, 255, 0.35)'; }}
+            onMouseOut={e => { e.currentTarget.style.background = 'var(--glass-regular)'; e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.boxShadow = 'none'; }}
+            title="Import CSV Cases"
+          >
+            <Upload className="w-3 h-3" />
+            <span className="hidden md:inline">Import CSV</span>
+          </button>
+
+          <div className="status-indicator status-online">
+            <Radio className="w-3 h-3 animate-pulse" />
+            <span>LIVE</span>
+          </div>
+
+          <ThemeToggle />
+        </div>
+      </header>
+
+      {/* Left Panel — Floating sidebar */}
       <ErrorBoundary>
         <Sidebar
           activeView={activeView}
@@ -99,105 +178,36 @@ function AppContent() {
         />
       </ErrorBoundary>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Command Header */}
-        <header className={`command-header px-6 py-4 flex items-center justify-between
-          ${isDark ? 'bg-slate-900/95' : 'bg-white/95'} backdrop-blur-xl border-b
-          ${isDark ? 'border-slate-800' : 'border-gray-200'}`}>
-          
-          {/* Left Section - Title */}
-          <div className="flex items-center gap-4">
-            <div className={`p-2.5 rounded-xl ${isDark ? 'bg-blue-600/20' : 'bg-blue-100'}`}>
-              <currentView.icon className={`w-5 h-5 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
-            </div>
-            <div>
-              <h2 className="text-lg font-semibold tracking-tight">{currentView.title}</h2>
-              <p className={`text-xs ${isDark ? 'text-slate-500' : 'text-gray-500'}`}>
-                {currentView.subtitle}
-              </p>
-            </div>
-          </div>
-          
-          {/* Right Section - Status */}
-          <div className="flex items-center gap-6">
-            {/* Location */}
-            <div className={`flex items-center gap-2 text-xs ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>
-              <MapPin className="w-3.5 h-3.5" />
-              <span>Chiang Rai Region</span>
-            </div>
-            
-            {/* Time */}
-            <div className={`flex items-center gap-2 text-xs font-mono ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>
-              <Clock className="w-3.5 h-3.5" />
-              <span>{new Date().toLocaleDateString('en-US', { 
-                weekday: 'short',
-                month: 'short', 
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-              })}</span>
-            </div>
+      {/* Bottom Bar — Floating status pill */}
+      <footer className="floating-footer">
+        <div className="flex items-center gap-3">
+          <Shield className="w-3 h-3" style={{ color: 'var(--accent-blue)' }} />
+          <span className="font-semibold text-[11px]" style={{ color: 'var(--text-secondary)' }}>DTID</span>
+          <span className="px-1.5 py-px rounded-md text-[9px] font-bold" style={{ background: 'var(--glass-regular)', color: 'var(--text-tertiary)' }}>v3</span>
+          <span className="hidden sm:inline text-[10px]" style={{ color: 'var(--text-quaternary)' }}>Narcotics Bureau</span>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="px-2 py-0.5 rounded-full text-[9px] font-bold" style={{ background: 'rgba(255, 159, 10, 0.1)', color: 'var(--accent-orange)', border: '1px solid rgba(255, 159, 10, 0.15)' }}>
+            CONFIDENTIAL
+          </span>
+          <span className="font-mono text-[10px]" style={{ color: 'var(--text-quaternary)' }}>
+            {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+          </span>
+        </div>
+      </footer>
 
-            {/* System Status */}
-            <div className="status-indicator status-online">
-              <Radio className="w-3 h-3 animate-pulse" />
-              <span>ONLINE</span>
-            </div>
-
-            {/* Theme Toggle */}
-            <ThemeToggle />
-          </div>
-        </header>
-
-        {/* View Container */}
-        <main className="flex-1 relative overflow-hidden">
-          <ErrorBoundary>
-            {activeView === 'map' && (
-              <CrimeMap 
-                flyToLocation={flyToLocation}
-                showHeatmap={showHeatmap}
-                onMarkerClick={(location) => {
-                  console.log('Marker clicked:', location);
-                }}
-              />
-            )}
-            {activeView === 'network' && (
-              <NetworkGraph 
-                onPersonSelect={handlePersonSelect}
-                selectedPersonId={selectedPersonId}
-              />
-            )}
-            {activeView === 'admin' && (
-              <AdminPage />
-            )}
-          </ErrorBoundary>
-        </main>
-
-        {/* Bottom Status Bar */}
-        <footer className={`px-6 py-2.5 flex items-center justify-between text-xs border-t
-          ${isDark ? 'bg-slate-900/90 border-slate-800 text-slate-500' : 'bg-white/90 border-gray-200 text-gray-500'}`}>
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-2">
-              <Shield className="w-3.5 h-3.5 text-blue-500" />
-              <span className="font-semibold">DTID Command Center</span>
-              <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${isDark ? 'bg-slate-800 text-slate-400' : 'bg-gray-100 text-gray-500'}`}>v2.0</span>
-            </div>
-            <span className={isDark ? 'text-slate-700' : 'text-gray-300'}>|</span>
-            <span>Narcotics Suppression Bureau • Royal Thai Police</span>
-          </div>
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-2">
-              <span>Classification:</span>
-              <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-500 font-semibold border border-amber-500/30">
-                CONFIDENTIAL
-              </span>
-            </div>
-            <span className={isDark ? 'text-slate-700' : 'text-gray-300'}>|</span>
-            <span className="font-mono">Last Sync: {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</span>
-          </div>
-        </footer>
-      </div>
+      {/* CSV Upload Modal */}
+      {showCsvUploader && (
+        <Suspense fallback={<ViewLoader />}>
+          <CsvUploader
+            onClose={() => setShowCsvUploader(false)}
+            onSuccess={(data) => {
+              console.log('CSV import complete:', data);
+              // Data is auto-refreshed in the CsvUploader component via refreshFromDatabase
+            }}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }

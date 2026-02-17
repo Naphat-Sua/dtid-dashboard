@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { MapPin, Crosshair, Search } from 'lucide-react';
-import { useThemeStore } from '../store/useStore';
+
 
 // Custom marker icon
 const createPickerIcon = () => {
@@ -62,8 +62,6 @@ const LocationPicker = ({
   placeholder = "Click on the map to select a location",
   error
 }) => {
-  const { theme } = useThemeStore();
-  const isDark = theme === 'dark';
   
   const [selectedLocation, setSelectedLocation] = useState(value || null);
   const [address, setAddress] = useState('');
@@ -141,25 +139,21 @@ const LocationPicker = ({
       {/* Search Bar */}
       <div className="flex gap-2">
         <div className="relative flex-1">
-          <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 
-            ${isDark ? 'text-slate-400' : 'text-gray-400'}`} />
+          <Search className={"absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4"} />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
             placeholder="Search location..."
-            className={`form-input pl-10 ${isDark ? 'bg-slate-800 border-slate-600' : 'bg-white border-gray-300'}`}
+            className={"form-input pl-10"}
           />
         </div>
         <button
           type="button"
           onClick={handleSearch}
           disabled={isSearching}
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors
-            ${isDark 
-              ? 'bg-cyan-600 hover:bg-cyan-500 text-white' 
-              : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
+          className={"px-4 py-2 rounded-xl text-sm font-medium transition-colors"}
         >
           {isSearching ? '...' : 'Search'}
         </button>
@@ -167,23 +161,18 @@ const LocationPicker = ({
           type="button"
           onClick={handleCenterOnUser}
           title="Use my location"
-          className={`p-2 rounded-lg transition-colors
-            ${isDark 
-              ? 'bg-slate-700 hover:bg-slate-600 text-slate-300' 
-              : 'bg-gray-100 hover:bg-gray-200 text-gray-600'}`}
+          className={"p-2 rounded-xl transition-colors"}
         >
           <Crosshair className="w-5 h-5" />
         </button>
       </div>
 
       {/* Map Container */}
-      <div className={`relative rounded-lg overflow-hidden border-2 
-        ${error 
-          ? 'border-red-500' 
-          : selectedLocation 
-            ? isDark ? 'border-cyan-500' : 'border-blue-500'
-            : isDark ? 'border-slate-600' : 'border-gray-300'}`}
-        style={{ height: '250px' }}
+      <div className="relative rounded-2xl overflow-hidden"
+        style={{ 
+          height: '250px',
+          border: error ? '2px solid var(--accent-red)' : selectedLocation ? '2px solid var(--accent-blue)' : '2px solid var(--border-subtle)'
+        }}
       >
         <MapContainer
           center={selectedLocation ? [selectedLocation.lat, selectedLocation.lng] : defaultCenter}
@@ -193,7 +182,7 @@ const LocationPicker = ({
         >
           <TileLayer
             attribution='&copy; OpenStreetMap'
-            url={isDark ? darkTileUrl : lightTileUrl}
+            url={darkTileUrl}
           />
           <MapClickHandler onLocationSelect={handleLocationSelect} />
           {selectedLocation && (
@@ -209,10 +198,8 @@ const LocationPicker = ({
 
         {/* Overlay instruction */}
         {!selectedLocation && (
-          <div className={`absolute inset-0 flex items-center justify-center pointer-events-none
-            ${isDark ? 'bg-slate-900/50' : 'bg-white/50'}`}>
-            <div className={`flex items-center gap-2 px-4 py-2 rounded-lg
-              ${isDark ? 'bg-slate-800 text-slate-300' : 'bg-white text-gray-600'} shadow-lg`}>
+          <div className={"absolute inset-0 flex items-center justify-center pointer-events-none"}>
+            <div className={"flex items-center gap-2 px-4 py-2 rounded-xl shadow-lg"}>
               <MapPin className="w-4 h-4" />
               <span className="text-sm">{placeholder}</span>
             </div>
@@ -222,16 +209,14 @@ const LocationPicker = ({
 
       {/* Selected Location Info */}
       {selectedLocation && (
-        <div className={`flex items-start gap-2 p-3 rounded-lg text-sm
-          ${isDark ? 'bg-slate-800/50 text-slate-300' : 'bg-gray-50 text-gray-600'}`}>
-          <MapPin className={`w-4 h-4 mt-0.5 flex-shrink-0 
-            ${isDark ? 'text-cyan-400' : 'text-blue-500'}`} />
+        <div className={"flex items-start gap-2 p-3 rounded-xl text-sm"}>
+          <MapPin className={"w-4 h-4 mt-0.5 flex-shrink-0"} />
           <div>
             <p className="font-mono text-xs mb-1">
               {selectedLocation.lat.toFixed(6)}, {selectedLocation.lng.toFixed(6)}
             </p>
             {address && (
-              <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>
+              <p className={"text-xs"}>
                 {address}
               </p>
             )}

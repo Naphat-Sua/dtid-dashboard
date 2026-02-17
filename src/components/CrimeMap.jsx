@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useMemo, useState } from 'react';
+import React, { useEffect, useRef, useMemo, useState, useCallback } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap, Circle, CircleMarker } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet.heat';
@@ -7,15 +7,32 @@ import {
   Flame, Snowflake, BarChart3, Layers, Info, TrendingUp, TrendingDown
 } from 'lucide-react';
 import { useDataStore, useThemeStore } from '../store/useStore';
+import { useShallow } from 'zustand/react/shallow';
 import { 
   performSpatialAnalysis, 
   getHotspotColor, 
   getClassificationLabel,
-  performKDE 
+  performKDE,
+  kdeToImageData,
+  calculateOptimalBandwidth,
+  calculateAdaptiveThreshold,
+  getAdaptiveResolution,
 } from '../utils/spatialAnalysis';
 import GISLayerControl, { GISLayers } from './GISLayerControl';
+import ProvinceLayer from './ProvinceLayer';
+import PoliceStationLayer from './PoliceStationLayer';
 import { loadAllLayers } from '../services/gisService';
 import { getDemoGISLayers } from '../data/demoGISData';
+import AnalysisControls from './AnalysisControls';
+
+// ── Zustand shallow selectors — avoids re-render on unrelated state changes ──
+const selectMapData = (s) => ({
+  locations: s.locations,
+  cases: s.cases,
+  drugSeizures: s.drugSeizures,
+  personCases: s.personCases,
+  persons: s.persons,
+});
 
 // Fix for default marker icons in React-Leaflet
 delete L.Icon.Default.prototype._getIconUrl;
@@ -59,8 +76,7 @@ const createCustomIcon = (type) => {
         display: flex;
         align-items: center;
         justify-content: center;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-      ">
+        box-shadow: 0 4px 12px rgba(0,0,0,0.4);">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="white" stroke="white" stroke-width="2">
           ${type === 'CrimeScene' 
             ? '<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line>'
@@ -126,91 +142,73 @@ const HeatmapLayer = ({ points }) => {
 
 // Helper function for density colors with smooth interpolation
 const getDensityColor = (normalizedDensity) => {
-  if (normalizedDensity > 0.8) return '#7f1d1d';  // Very high - dark red
-  if (normalizedDensity > 0.6) return '#991b1b';  // High - darker red  
-  if (normalizedDensity > 0.45) return '#dc2626'; // Medium-high - red
-  if (normalizedDensity > 0.3) return '#ef4444';  // Medium - lighter red
-  if (normalizedDensity > 0.2) return '#f97316';  // Low-medium - orange
-  return '#fbbf24'; // Low - amber/yellow
+  if (normalizedDensity > 0.8) return '#7f1d1d';
+  if (normalizedDensity > 0.6) return '#991b1b';
+  if (normalizedDensity > 0.45) return '#dc2626';
+  if (normalizedDensity > 0.3) return '#ef4444';
+  if (normalizedDensity > 0.2) return '#f97316';
+  return '#fbbf24';
 };
 
-// KDE Density Layer - Smooth radial gradients centered on data points
-const KDEDensityLayer = ({ kdeResult, opacity = 0.6, points = [] }) => {
+// ── True KDE Raster Layer — canvas-based density surface via L.ImageOverlay ──
+const KDEDensityLayer = ({ kdeResult, opacity = 0.65 }) => {
   const map = useMap();
-  const layerRef = useRef(null);
+  const overlayRef = useRef(null);
+  const canvasRef = useRef(null);
 
   useEffect(() => {
-    if (!map || !points || points.length === 0) return;
+    if (!map || !kdeResult || !kdeResult.grid) return;
 
-    // Remove existing layer
-    if (layerRef.current) {
-      map.removeLayer(layerRef.current);
+    // Remove previous overlay
+    if (overlayRef.current) {
+      map.removeLayer(overlayRef.current);
+      overlayRef.current = null;
     }
 
-    // Create smooth density visualization using concentric circles at each data point
-    // This creates a more natural, organic look than a grid
-    const circles = [];
-    
-    // Aggregate points by location to get density weights
-    const locationMap = new Map();
-    points.forEach(p => {
-      const key = `${p.lat.toFixed(4)},${p.lng.toFixed(4)}`;
-      if (!locationMap.has(key)) {
-        locationMap.set(key, { lat: p.lat, lng: p.lng, weight: 0 });
-      }
-      locationMap.get(key).weight += (p.value || p.intensity || 1);
-    });
-    
-    const locations = Array.from(locationMap.values());
-    const maxWeight = Math.max(...locations.map(l => l.weight));
-    
-    // Create layered rings for each location (inner = more intense)
-    const ringConfigs = [
-      { radiusMultiplier: 1.0, opacityMultiplier: 0.15, color: '#fbbf24' },  // Outer - amber
-      { radiusMultiplier: 0.75, opacityMultiplier: 0.25, color: '#f97316' }, // Orange
-      { radiusMultiplier: 0.55, opacityMultiplier: 0.35, color: '#ef4444' }, // Light red
-      { radiusMultiplier: 0.38, opacityMultiplier: 0.45, color: '#dc2626' }, // Red
-      { radiusMultiplier: 0.22, opacityMultiplier: 0.55, color: '#991b1b' }, // Dark red
-      { radiusMultiplier: 0.1, opacityMultiplier: 0.65, color: '#7f1d1d' },  // Core - darkest
-    ];
-    
-    // Sort locations by weight so larger ones are drawn first (appear behind)
-    locations.sort((a, b) => b.weight - a.weight);
-    
-    locations.forEach(loc => {
-      const normalizedWeight = loc.weight / maxWeight;
-      // Base radius scales with weight: 3km to 15km
-      const baseRadius = 3000 + (normalizedWeight * 12000);
-      
-      // Draw concentric rings from outside to inside
-      ringConfigs.forEach(ring => {
-        const circle = L.circle([loc.lat, loc.lng], {
-          radius: baseRadius * ring.radiusMultiplier,
-          fillColor: ring.color,
-          fillOpacity: opacity * ring.opacityMultiplier * (0.5 + normalizedWeight * 0.5),
-          stroke: false,
-          interactive: false
-        });
-        circles.push(circle);
-      });
-    });
+    // Render KDE grid to a <canvas> via kdeToImageData
+    const imgResult = kdeToImageData(kdeResult, 'fire', opacity);
+    if (!imgResult) return;
 
-    layerRef.current = L.layerGroup(circles).addTo(map);
+    const { imageData, width, height, bounds } = imgResult;
+
+    // Create off-screen canvas
+    if (!canvasRef.current) {
+      canvasRef.current = document.createElement('canvas');
+    }
+    const canvas = canvasRef.current;
+    canvas.width  = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    const imgData = ctx.createImageData(width, height);
+    imgData.data.set(imageData);
+    ctx.putImageData(imgData, 0, 0);
+
+    // Create Leaflet ImageOverlay from canvas data URL
+    const dataUrl = canvas.toDataURL('image/png');
+    const leafletBounds = L.latLngBounds(
+      [bounds.minLat, bounds.minLng],
+      [bounds.maxLat, bounds.maxLng]
+    );
+
+    overlayRef.current = L.imageOverlay(dataUrl, leafletBounds, {
+      opacity: 1, // Alpha already baked into the pixel buffer
+      interactive: false,
+      className: 'kde-raster-overlay',
+    }).addTo(map);
 
     return () => {
-      if (layerRef.current) {
-        map.removeLayer(layerRef.current);
+      if (overlayRef.current) {
+        map.removeLayer(overlayRef.current);
+        overlayRef.current = null;
       }
     };
-  }, [map, points, opacity]);
+  }, [map, kdeResult, opacity]);
 
   return null;
 };
 
 // Gi* Hotspot Markers Layer
 const HotspotLayer = ({ giResults, onMarkerClick }) => {
-  const { theme } = useThemeStore();
-  const isDark = theme === 'dark';
   
   if (!giResults || !giResults.results) return null;
 
@@ -235,7 +233,7 @@ const HotspotLayer = ({ giResults, onMarkerClick }) => {
             }}
           >
             <Popup>
-              <div className={`min-w-[220px] ${isDark ? 'text-slate-200' : 'text-gray-800'}`}>
+              <div className={"min-w-[220px]"}>
                 <div className="flex items-center gap-2 mb-3">
                   {point.isHotspot ? (
                     <Flame className="w-5 h-5 text-red-500" />
@@ -251,11 +249,11 @@ const HotspotLayer = ({ giResults, onMarkerClick }) => {
 
                 <div className="space-y-2 text-xs">
                   <div className="flex justify-between">
-                    <span className="text-slate-400">Crime Count:</span>
+                    <span style={{ color: 'var(--text-secondary)' }}>Crime Count:</span>
                     <span className="font-mono font-medium">{point.value || 0}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-400">Gi* Z-Score:</span>
+                    <span style={{ color: 'var(--text-secondary)' }}>Gi* Z-Score:</span>
                     <span className={`font-mono font-medium ${
                       point.isHotspot ? 'text-red-400' : 
                       point.isColdspot ? 'text-blue-400' : 'text-gray-400'
@@ -264,13 +262,13 @@ const HotspotLayer = ({ giResults, onMarkerClick }) => {
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-400">P-Value:</span>
+                    <span style={{ color: 'var(--text-secondary)' }}>P-Value:</span>
                     <span className="font-mono">
                       {point.pValue < 0.001 ? '<0.001' : point.pValue.toFixed(4)}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-400">Confidence:</span>
+                    <span style={{ color: 'var(--text-secondary)' }}>Confidence:</span>
                     <span className={`font-medium ${
                       point.confidenceLevel >= 99 ? 'text-green-400' :
                       point.confidenceLevel >= 95 ? 'text-yellow-400' :
@@ -280,13 +278,13 @@ const HotspotLayer = ({ giResults, onMarkerClick }) => {
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-400">Neighbors:</span>
+                    <span style={{ color: 'var(--text-secondary)' }}>Neighbors:</span>
                     <span>{point.neighborsCount}</span>
                   </div>
                 </div>
 
-                <div className={`mt-3 pt-2 border-t ${isDark ? 'border-slate-600' : 'border-gray-300'}`}>
-                  <p className="text-[10px] text-slate-500">
+                <div className="mt-3 pt-2" style={{ borderTop: '1px solid var(--border-default)' }}>
+                  <p className="text-[10px]" style={{ color: 'var(--text-tertiary)' }}>
                     {point.isHotspot 
                       ? '⚠️ Statistically significant high-crime cluster'
                       : point.isColdspot
@@ -303,90 +301,10 @@ const HotspotLayer = ({ giResults, onMarkerClick }) => {
   );
 };
 
-// Analysis Statistics Panel
-const AnalysisStatsPanel = ({ giResults, kdeResult, isDark }) => {
-  if (!giResults) return null;
-
-  const { summary } = giResults;
-
-  return (
-    <div className={`absolute top-4 right-4 z-[1000] rounded-lg p-4 shadow-lg backdrop-blur-sm
-      ${isDark ? 'bg-slate-900/90 text-white' : 'bg-white/90 text-gray-900'}`}
-      style={{ maxWidth: '280px' }}
-    >
-      <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-600">
-        <BarChart3 className={`w-5 h-5 ${isDark ? 'text-cyan-400' : 'text-blue-600'}`} />
-        <h3 className="font-semibold text-sm">Getis-Ord Gi* Analysis</h3>
-      </div>
-
-      {/* Hotspot Summary */}
-      <div className="space-y-2 text-xs">
-        <div className="flex items-center gap-2">
-          <Flame className="w-4 h-4 text-red-500" />
-          <span className="font-medium">Hotspots (High-Risk)</span>
-        </div>
-        <div className="ml-6 space-y-1">
-          <div className="flex justify-between">
-            <span className={isDark ? 'text-slate-400' : 'text-gray-600'}>99% Confidence:</span>
-            <span className="font-mono text-red-400">{summary.hotspots99}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className={isDark ? 'text-slate-400' : 'text-gray-600'}>95% Confidence:</span>
-            <span className="font-mono text-orange-400">{summary.hotspots95}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className={isDark ? 'text-slate-400' : 'text-gray-600'}>90% Confidence:</span>
-            <span className="font-mono text-yellow-400">{summary.hotspots90}</span>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 mt-3">
-          <Snowflake className="w-4 h-4 text-blue-500" />
-          <span className="font-medium">Coldspots (Low-Risk)</span>
-        </div>
-        <div className="ml-6 space-y-1">
-          <div className="flex justify-between">
-            <span className={isDark ? 'text-slate-400' : 'text-gray-600'}>99% Confidence:</span>
-            <span className="font-mono text-blue-700">{summary.coldspots99}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className={isDark ? 'text-slate-400' : 'text-gray-600'}>95% Confidence:</span>
-            <span className="font-mono text-blue-500">{summary.coldspots95}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className={isDark ? 'text-slate-400' : 'text-gray-600'}>90% Confidence:</span>
-            <span className="font-mono text-blue-300">{summary.coldspots90}</span>
-          </div>
-        </div>
-
-        <div className="flex justify-between mt-3 pt-2 border-t border-slate-600">
-          <span className={isDark ? 'text-slate-400' : 'text-gray-600'}>Not Significant:</span>
-          <span className="font-mono text-gray-400">{summary.notSignificant}</span>
-        </div>
-
-        {/* Analysis Parameters */}
-        <div className="mt-3 pt-2 border-t border-slate-600">
-          <p className="text-[10px] text-slate-500 mb-1">Analysis Parameters:</p>
-          <div className="flex justify-between text-[10px]">
-            <span className={isDark ? 'text-slate-400' : 'text-gray-600'}>Total Points:</span>
-            <span className="font-mono">{giResults.results?.length || 0}</span>
-          </div>
-          <div className="flex justify-between text-[10px]">
-            <span className={isDark ? 'text-slate-400' : 'text-gray-600'}>Distance Threshold:</span>
-            <span className="font-mono">{summary.distanceThreshold?.toFixed(2)} km</span>
-          </div>
-          <div className="flex justify-between text-[10px]">
-            <span className={isDark ? 'text-slate-400' : 'text-gray-600'}>Global Mean:</span>
-            <span className="font-mono">{summary.globalMean?.toFixed(3)}</span>
-          </div>
-          <div className="flex justify-between text-[10px]">
-            <span className={isDark ? 'text-slate-400' : 'text-gray-600'}>Global Std Dev:</span>
-            <span className="font-mono">{summary.globalStdDev?.toFixed(3)}</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+// Analysis Statistics Panel — now a compact summary since AnalysisControls handles detail
+const AnalysisStatsPanel = ({ giResults, kdeResult }) => {
+  // This component is now superseded by AnalysisControls; kept for backward compat
+  return null;
 };
 
 // Fly to location component
@@ -404,21 +322,56 @@ const FlyToLocation = ({ center, zoom }) => {
   return null;
 };
 
+// ── Zoom observer — feeds current zoom level back to parent ──
+const ZoomObserver = ({ onZoomChange }) => {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!map) return;
+    const handler = () => onZoomChange(map.getZoom());
+    handler(); // initial
+    map.on('zoomend', handler);
+    return () => map.off('zoomend', handler);
+  }, [map, onZoomChange]);
+
+  return null;
+};
+
+// ── Default analysis parameters ──
+const DEFAULT_PARAMS = {
+  kdeBandwidth:          10,
+  kdeBandwidthAuto:      true,
+  kdeKernel:             'quartic',
+  kdeResolution:         60,
+  kdeResolutionAuto:     true,
+  giDistanceThreshold:   5,
+  giDistanceThresholdAuto: true,
+  giWeightType:          'binary',
+};
+
 const CrimeMap = ({ flyToLocation, showHeatmap = true, onMarkerClick }) => {
-  const { theme } = useThemeStore();
-  const isDark = theme === 'dark';
-  const { locations, getCaseLocations, getPersonLocations } = useDataStore();
+  // ── Select only the raw arrays we need — stable references unless data changes ──
+  const { locations, cases, drugSeizures, personCases, persons } = useDataStore(useShallow(selectMapData));
+  const selectedProvince = useDataStore(s => s.selectedProvince);
+  const setSelectedProvince = useDataStore(s => s.setSelectedProvince);
   
   // Visualization mode state
   const [vizMode, setVizMode] = useState('heatmap'); // 'heatmap' | 'kde' | 'hotspot' | 'all'
   const [showStats, setShowStats] = useState(true);
+  const [mapZoom, setMapZoom] = useState(10);
+  
+  // ── Analysis parameters — user-controllable via AnalysisControls ──
+  const [analysisParams, setAnalysisParams] = useState(DEFAULT_PARAMS);
   
   // GIS layers state
   const [gisLayers, setGisLayers] = useState(null);
   const [gisLayersLoading, setGisLayersLoading] = useState(false);
+  // Base layer — mutually exclusive: 'provinces' | 'policeStations' | null
+  const [activeBaseLayer, setActiveBaseLayer] = useState('provinces');
   const [visibleGISLayers, setVisibleGISLayers] = useState({
     schools: false,
     tambonCentroids: false,
+    policeStations: false,
     roads: false,
     provinces: true,
     amphoe: false,
@@ -434,24 +387,17 @@ const CrimeMap = ({ flyToLocation, showHeatmap = true, onMarkerClick }) => {
     const loadGISLayers = async () => {
       try {
         setGisLayersLoading(true);
-        
-        // Try to load GIS layers from GeoJSON files
-        // Falls back to demo data if files don't exist
         try {
           const layers = await loadAllLayers();
           if (layers.points || layers.lines || layers.polygons) {
             setGisLayers(layers);
-            console.log('GIS Layers loaded from files:', layers);
             return;
           }
         } catch (e) {
           console.log('GeoJSON files not available, using demo data');
         }
-        
-        // Use demo data as fallback
         const demoLayers = getDemoGISLayers();
         setGisLayers(demoLayers);
-        console.log('Using demo GIS Layers:', demoLayers);
       } catch (error) {
         console.error('Failed to load GIS layers:', error);
         const demoLayers = getDemoGISLayers();
@@ -460,123 +406,139 @@ const CrimeMap = ({ flyToLocation, showHeatmap = true, onMarkerClick }) => {
         setGisLayersLoading(false);
       }
     };
-
     loadGISLayers();
   }, []);
 
   const handleGISLayerToggle = (layerName, isVisible) => {
-    setVisibleGISLayers(prev => ({
-      ...prev,
-      [layerName]: isVisible
-    }));
+    // Enforce mutual exclusion for base layers
+    if (layerName === 'provinces' || layerName === 'policeStations') {
+      const other = layerName === 'provinces' ? 'policeStations' : 'provinces';
+      if (isVisible) {
+        setActiveBaseLayer(layerName);
+        setVisibleGISLayers(prev => ({ ...prev, [layerName]: true, [other]: false }));
+      } else {
+        setActiveBaseLayer(null);
+        setVisibleGISLayers(prev => ({ ...prev, [layerName]: false }));
+      }
+    } else {
+      setVisibleGISLayers(prev => ({ ...prev, [layerName]: isVisible }));
+    }
   };
 
-  const caseLocations = useMemo(() => getCaseLocations(), [getCaseLocations]);
-  const personLocations = useMemo(() => getPersonLocations(), [getPersonLocations]);
+  // Handle base layer toggle from the floating segmented control
+  const handleBaseLayerChange = useCallback((layer) => {
+    setActiveBaseLayer(layer);
+    setVisibleGISLayers(prev => ({
+      ...prev,
+      provinces: layer === 'provinces',
+      policeStations: layer === 'policeStations',
+    }));
+  }, []);
 
-  // Prepare points for analysis - aggregate by unique location
+  const handleZoomChange = useCallback((z) => setMapZoom(z), []);
+
+  // ── Compute derived data with stable deps ──
+  const caseLocations = useMemo(() => {
+    return cases.map(c => {
+      const location = locations.find(l => l.LocationID === c.LocationID);
+      const seizures = drugSeizures.filter(s => s.CaseID === c.CaseID);
+      const involvedPersonIds = personCases.filter(pc => pc.CaseID === c.CaseID);
+      const involvedPersons = involvedPersonIds.map(pc => ({
+        ...persons.find(p => p.PersonID === pc.PersonID),
+        Role: pc.Role
+      }));
+      return { ...location, case: c, seizures, involvedPersons };
+    });
+  }, [cases, locations, drugSeizures, personCases, persons]);
+
+  // Prepare aggregated analysis points
   const analysisPoints = useMemo(() => {
-    // Group cases by location coordinates to aggregate crime counts
     const locationMap = new Map();
     
     caseLocations.forEach(loc => {
-      // Use lat,lng as key to aggregate nearby crimes
+      if (!loc.Latitude || !loc.Longitude) return; // skip cases without valid location
       const key = `${loc.Latitude.toFixed(4)},${loc.Longitude.toFixed(4)}`;
-      
       if (!locationMap.has(key)) {
         locationMap.set(key, {
-          id: loc.LocationID,
-          lat: loc.Latitude,
-          lng: loc.Longitude,
-          caseCount: 0,
-          seizureCount: 0,
-          totalSeizureWeight: 0,
-          cases: [],
-          seizures: [],
-          ...loc
+          id: loc.LocationID, lat: loc.Latitude, lng: loc.Longitude,
+          caseCount: 0, seizureCount: 0, totalSeizureWeight: 0,
+          cases: [], seizures: [], ...loc,
         });
       }
-      
-      const aggregated = locationMap.get(key);
-      aggregated.caseCount++;
+      const agg = locationMap.get(key);
+      agg.caseCount++;
       if (loc.seizures) {
-        aggregated.seizureCount += loc.seizures.length;
-        aggregated.seizures.push(...loc.seizures);
-        // Calculate total weight from seizures
+        agg.seizureCount += loc.seizures.length;
+        agg.seizures.push(...loc.seizures);
         loc.seizures.forEach(s => {
-          const weight = parseFloat(s.Quantity) || 0;
-          aggregated.totalSeizureWeight += weight;
+          agg.totalSeizureWeight += (parseFloat(s.Quantity) || 0);
         });
       }
-      if (loc.case) {
-        aggregated.cases.push(loc.case);
-      }
+      if (loc.case) agg.cases.push(loc.case);
     });
     
-    // Convert to array and calculate value for Gi* analysis
     return Array.from(locationMap.values()).map(loc => ({
       ...loc,
-      // Use combined score: case count + seizure count for better variance
       value: loc.caseCount + loc.seizureCount,
-      intensity: Math.min(1.0, (loc.caseCount + loc.seizureCount) / 5)
+      intensity: Math.min(1.0, (loc.caseCount + loc.seizureCount) / 5),
     }));
   }, [caseLocations]);
 
-  // Perform spatial analysis with refined KDE settings
-  // Bandwidth increased by ~65% (15km → 25km) to smooth variance and bridge cluster gaps
-  const spatialAnalysis = useMemo(() => {
-    if (analysisPoints.length < 3) {
-      return null;
-    }
-    return performSpatialAnalysis(analysisPoints, {
-      kdeResolution: 80,       // High resolution for denser grid
-      giWeightType: 'binary',
-      kdeBandwidth: 25         // Increased 65% (was 15) - smooths variance, bridges clusters
-    });
-  }, [analysisPoints]);
+  // ── Auto-calculated reference values (shown on sliders when "Auto" is on) ──
+  const autoValues = useMemo(() => {
+    if (analysisPoints.length < 2) return { bandwidth: 5, distanceThreshold: 5, resolution: 60 };
+    return {
+      bandwidth:         calculateOptimalBandwidth(analysisPoints),
+      distanceThreshold: calculateAdaptiveThreshold(analysisPoints),
+      resolution:        getAdaptiveResolution(mapZoom),
+    };
+  }, [analysisPoints, mapZoom]);
 
-  // Prepare heatmap data from crime scenes - apply 1.5x weight multiplier
+  // ── Resolve effective parameters (auto vs manual) ──
+  const effectiveParams = useMemo(() => ({
+    kdeBandwidth:        analysisParams.kdeBandwidthAuto         ? null : analysisParams.kdeBandwidth,
+    kdeKernel:           analysisParams.kdeKernel,
+    kdeResolution:       analysisParams.kdeResolutionAuto        ? null : analysisParams.kdeResolution,
+    giDistanceThreshold: analysisParams.giDistanceThresholdAuto  ? null : analysisParams.giDistanceThreshold,
+    giWeightType:        analysisParams.giWeightType,
+    zoom:                analysisParams.kdeResolutionAuto        ? mapZoom : null,
+  }), [analysisParams, mapZoom]);
+
+  // ── Spatial analysis (KDE + Gi*) — recomputes on param changes ──
+  const spatialAnalysis = useMemo(() => {
+    if (analysisPoints.length < 3) return null;
+    return performSpatialAnalysis(analysisPoints, effectiveParams);
+  }, [analysisPoints, effectiveParams]);
+
+  // Heatmap data (for leaflet.heat — purely visual)
   const heatmapPoints = useMemo(() => {
     return analysisPoints.map(p => ({
-      lat: p.lat,
-      lng: p.lng,
-      intensity: Math.min(1.0, (p.intensity || 0.5) * 1.5) // 1.5x weight multiplier
+      lat: p.lat, lng: p.lng,
+      intensity: Math.min(1.0, (p.intensity || 0.5) * 1.5),
     }));
   }, [analysisPoints]);
 
   // All locations for markers
   const allLocations = useMemo(() => {
     const locMap = new Map();
-    
-    // Add case locations
     caseLocations.forEach(loc => {
       if (loc && loc.LocationID && !locMap.has(loc.LocationID)) {
-        locMap.set(loc.LocationID, {
-          ...loc,
-          cases: [loc.case],
-          persons: loc.involvedPersons
-        });
+        locMap.set(loc.LocationID, { ...loc, cases: [loc.case], persons: loc.involvedPersons });
       } else if (locMap.has(loc.LocationID)) {
         locMap.get(loc.LocationID).cases.push(loc.case);
       }
     });
-
-    // Add all other locations
     locations.forEach(loc => {
       if (!locMap.has(loc.LocationID)) {
-        locMap.set(loc.LocationID, {
-          ...loc,
-          cases: [],
-          persons: []
-        });
+        locMap.set(loc.LocationID, { ...loc, cases: [], persons: [] });
       }
     });
-
     return Array.from(locMap.values());
   }, [caseLocations, locations]);
 
-  // Get current tile config
-  const tileConfig = isDark ? MAP_TILES.dark : MAP_TILES.light;
+  // Theme
+  const { theme } = useThemeStore();
+  const tileConfig = theme === 'dark' ? MAP_TILES.dark : MAP_TILES.light;
 
   return (
     <div className="relative w-full h-full">
@@ -585,23 +547,41 @@ const CrimeMap = ({ flyToLocation, showHeatmap = true, onMarkerClick }) => {
         zoom={defaultZoom}
         className="w-full h-full z-0"
         zoomControl={false}
-        key={theme} // Force re-render on theme change
+        key={theme}
       >
         <TileLayer
           attribution={tileConfig.attribution}
           url={tileConfig.url}
         />
 
-        {/* GIS Layers - Point, Line, Polygon */}
+        {/* GIS Layers - Point, Line, Polygon (non-province) */}
         <GISLayers gisLayers={gisLayers} visibleLayers={visibleGISLayers} />
+
+        {/* Interactive Province Boundaries — 77 Thai provinces */}
+        <ProvinceLayer
+          data={gisLayers?.polygons?.provinces}
+          visible={visibleGISLayers.provinces}
+          selectedProvince={selectedProvince}
+          onProvinceSelect={setSelectedProvince}
+        />
+
+        {/* Police Stations + Voronoi Jurisdictions */}
+        <PoliceStationLayer
+          stationData={gisLayers?.points?.policeStations}
+          jurisdictionData={gisLayers?.polygons?.policeJurisdictions}
+          visible={visibleGISLayers.policeStations}
+        />
+
+        {/* Zoom observer — feeds zoom level for adaptive resolution */}
+        <ZoomObserver onZoomChange={handleZoomChange} />
 
         {/* Visualization Layers based on mode */}
         {(vizMode === 'heatmap' || vizMode === 'all') && showHeatmap && (
           <HeatmapLayer points={heatmapPoints} />
         )}
 
-        {(vizMode === 'kde' || vizMode === 'all') && analysisPoints.length > 0 && (
-          <KDEDensityLayer points={analysisPoints} opacity={0.5} />
+        {(vizMode === 'kde' || vizMode === 'all') && spatialAnalysis?.kde && (
+          <KDEDensityLayer kdeResult={spatialAnalysis.kde} opacity={0.65} />
         )}
 
         {(vizMode === 'hotspot' || vizMode === 'all') && spatialAnalysis?.giStar && (
@@ -640,16 +620,16 @@ const CrimeMap = ({ flyToLocation, showHeatmap = true, onMarkerClick }) => {
                   </span>
                 </div>
 
-                <p className="text-xs text-slate-400 mb-3 flex items-start gap-1">
+                <p className="text-xs mb-3 flex items-start gap-1" style={{ color: 'var(--text-secondary)' }}>
                   <MapPin className="w-3 h-3 mt-0.5 flex-shrink-0" />
                   {location.AddressDetail || location.Address}
                 </p>
 
                 {location.cases && location.cases.length > 0 && (
-                  <div className="border-t border-slate-600 pt-2 mt-2">
+                  <div className="pt-2 mt-2">
                     <p className="text-xs font-medium mb-2">Related Cases:</p>
                     {location.cases.map((c, idx) => (
-                      <div key={idx} className="bg-slate-700/50 rounded p-2 mb-1 text-xs">
+                      <div key={idx} className="rounded p-2 mb-1 text-xs">
                         <div className="flex justify-between items-center">
                           <span className="font-mono">{c.CaseNumber}</span>
                           <span className={`badge ${
@@ -659,24 +639,24 @@ const CrimeMap = ({ flyToLocation, showHeatmap = true, onMarkerClick }) => {
                             {c.Status}
                           </span>
                         </div>
-                        <p className="text-slate-400 mt-1">{c.CaseType}</p>
+                        <p className="mt-1" style={{ color: 'var(--text-secondary)' }}>{c.CaseType}</p>
                       </div>
                     ))}
                   </div>
                 )}
 
                 {location.persons && location.persons.length > 0 && (
-                  <div className="border-t border-slate-600 pt-2 mt-2">
+                  <div className="pt-2 mt-2">
                     <p className="text-xs font-medium mb-2">Involved Persons:</p>
                     {location.persons.slice(0, 3).map((p, idx) => (
                       <div key={idx} className="flex items-center gap-2 text-xs mb-1">
-                        <User className="w-3 h-3 text-slate-400" />
+                        <User className="w-3 h-3 " style={{ color: 'var(--text-secondary)' }} />
                         <span>{p.FirstName} {p.LastName}</span>
-                        <span className="text-slate-500">({p.Alias})</span>
+                        <span style={{ color: 'var(--text-tertiary)' }}>({p.Alias})</span>
                       </div>
                     ))}
                     {location.persons.length > 3 && (
-                      <p className="text-xs text-slate-500">+{location.persons.length - 3} more</p>
+                      <p className="text-xs " style={{ color: 'var(--text-tertiary)' }}>+{location.persons.length - 3} more</p>
                     )}
                   </div>
                 )}
@@ -687,89 +667,155 @@ const CrimeMap = ({ flyToLocation, showHeatmap = true, onMarkerClick }) => {
       </MapContainer>
 
       {/* GIS Layer Control Panel */}
-      <GISLayerControl gisLayers={gisLayers} onLayerToggle={handleGISLayerToggle} />
+      <GISLayerControl gisLayers={gisLayers} onLayerToggle={handleGISLayerToggle} visibleLayers={visibleGISLayers} />
+
+      {/* ── Base Layer Segmented Toggle ── */}
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[800] rounded-2xl glass-floating p-1 flex items-center gap-1">
+        {[
+          { id: 'provinces', label: 'Provinces', icon: '🗺️' },
+          { id: 'policeStations', label: 'Police Stations', icon: '🚔' },
+        ].map((opt) => {
+          const isActive = activeBaseLayer === opt.id;
+          return (
+            <button
+              key={opt.id}
+              onClick={() => handleBaseLayerChange(isActive ? null : opt.id)}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold transition-all duration-300"
+              style={
+                isActive
+                  ? {
+                      background: 'var(--accent-cyan)',
+                      color: '#fff',
+                      boxShadow: '0 0 14px var(--glow-cyan)',
+                    }
+                  : {
+                      background: 'transparent',
+                      color: 'var(--text-secondary)',
+                    }
+              }
+              onMouseOver={(e) => {
+                if (!isActive) e.currentTarget.style.background = 'var(--glass-regular)';
+              }}
+              onMouseOut={(e) => {
+                if (!isActive) e.currentTarget.style.background = 'transparent';
+              }}
+            >
+              <span>{opt.icon}</span>
+              {opt.label}
+            </button>
+          );
+        })}
+      </div>
 
       {/* Visualization Mode Selector */}
-      <div className={`absolute top-4 left-4 z-[1000] rounded-lg p-2 shadow-lg backdrop-blur-sm
-        ${isDark ? 'bg-slate-900/90' : 'bg-white/90'}`}>
+      <div className="absolute top-20 right-4 z-[800] rounded-2xl p-2.5 glass-floating">
         <div className="flex items-center gap-1 mb-2">
-          <Layers className={`w-4 h-4 ${isDark ? 'text-cyan-400' : 'text-blue-600'}`} />
-          <span className={`text-xs font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+          <Layers className="w-4 h-4" style={{ color: 'var(--text-secondary)' }} />
+          <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
             Analysis Mode
           </span>
         </div>
         <div className="flex flex-col gap-1">
           {[
-            { id: 'heatmap', label: 'Heatmap', icon: '🔥' },
-            { id: 'kde', label: 'KDE Density', icon: '📊' },
-            { id: 'hotspot', label: 'Gi* Hotspot', icon: '📍' },
-            { id: 'all', label: 'All Layers', icon: '🗺️' },
+            { id: 'heatmap', label: 'Heatmap', icon: '🔥', desc: 'Client-side WebGL' },
+            { id: 'kde', label: 'KDE Surface', icon: '📊', desc: 'True kernel density' },
+            { id: 'hotspot', label: 'Gi* Hotspot', icon: '📍', desc: 'Statistical clusters' },
+            { id: 'all', label: 'All Layers', icon: '🗺️', desc: 'Combined view' },
           ].map(mode => (
             <button
               key={mode.id}
               onClick={() => setVizMode(mode.id)}
               className={`flex items-center gap-2 px-3 py-1.5 rounded text-xs font-medium transition-colors
                 ${vizMode === mode.id
-                  ? isDark 
-                    ? 'bg-cyan-600 text-white' 
-                    : 'bg-blue-600 text-white'
-                  : isDark
-                    ? 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                  ? 'bg-cyan-600 text-white'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
+              style={vizMode === mode.id
+                ? { background: 'var(--accent-cyan)', boxShadow: '0 0 12px var(--glow-cyan)' }
+                : { background: 'var(--glass-thin)' }}
+              title={mode.desc}
             >
               <span>{mode.icon}</span>
               {mode.label}
             </button>
           ))}
         </div>
-        <button
-          onClick={() => setShowStats(!showStats)}
-          className={`mt-2 w-full flex items-center justify-center gap-1 px-3 py-1.5 rounded text-xs transition-colors
-            ${isDark ? 'bg-slate-800 text-slate-300 hover:bg-slate-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
-        >
-          <Info className="w-3 h-3" />
-          {showStats ? 'Hide Stats' : 'Show Stats'}
-        </button>
       </div>
 
-      {/* Analysis Statistics Panel */}
-      {showStats && (vizMode === 'hotspot' || vizMode === 'all') && spatialAnalysis?.giStar && (
-        <AnalysisStatsPanel 
-          giResults={spatialAnalysis.giStar} 
-          kdeResult={spatialAnalysis.kde}
-          isDark={isDark} 
+      {/* ── Analysis Controls — parameter sliders + stats + methodology ── */}
+      {vizMode !== 'heatmap' && (
+        <AnalysisControls
+          params={analysisParams}
+          onParamsChange={setAnalysisParams}
+          autoValues={autoValues}
+          giSummary={spatialAnalysis?.giStar?.summary}
+          kdeResult={spatialAnalysis?.kde}
+          vizMode={vizMode}
         />
       )}
 
+      {/* Heatmap info — when in heatmap-only mode, show minimal controls */}
+      {vizMode === 'heatmap' && (
+        <AnalysisControls
+          params={analysisParams}
+          onParamsChange={setAnalysisParams}
+          autoValues={autoValues}
+          giSummary={null}
+          kdeResult={null}
+          vizMode={vizMode}
+        />
+      )}
+
+      {/* Selected Province Badge */}
+      {selectedProvince && (
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-[900] rounded-2xl px-4 py-2.5 glass-floating flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <div className="w-2.5 h-2.5 rounded-full animate-pulse"
+              style={{ background: 'var(--accent-cyan)', boxShadow: '0 0 8px var(--glow-cyan)' }} />
+            <span className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>
+              Province Filter:
+            </span>
+            <span className="text-sm font-semibold" style={{ color: 'var(--accent-cyan)' }}>
+              {selectedProvince}
+            </span>
+          </div>
+          <button
+            onClick={() => setSelectedProvince(null)}
+            className="text-xs px-2 py-1 rounded-lg transition-all hover:scale-105"
+            style={{ background: 'var(--glass-regular)', color: 'var(--text-secondary)' }}
+          >
+            ✕ Clear
+          </button>
+        </div>
+      )}
+
       {/* Map Legend */}
-      <div className={`absolute bottom-4 left-4 z-[1000] rounded-lg p-3 shadow-lg backdrop-blur-sm
-        ${isDark ? 'bg-slate-900/90' : 'bg-white/90'}`}>
-        <p className={`text-xs font-semibold mb-2 ${isDark ? 'text-slate-300' : 'text-gray-700'}`}>Legend</p>
+      <div className="absolute bottom-14 right-4 z-[800] rounded-2xl p-3.5 glass-floating">
+        <p className="text-xs font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>Legend</p>
         
         {vizMode !== 'hotspot' && (
           <div className="space-y-1.5">
             <div className="flex items-center gap-2 text-xs">
               <div className="w-4 h-4 rounded-full bg-red-500 border-2 border-red-300"></div>
-              <span className={isDark ? 'text-slate-300' : 'text-gray-700'}>Crime Scene</span>
+              <span style={{ color: 'var(--text-secondary)' }}>Crime Scene</span>
             </div>
             <div className="flex items-center gap-2 text-xs">
               <div className="w-4 h-4 rounded-full bg-blue-500 border-2 border-blue-300"></div>
-              <span className={isDark ? 'text-slate-300' : 'text-gray-700'}>Residence</span>
+              <span style={{ color: 'var(--text-secondary)' }}>Residence</span>
             </div>
             <div className="flex items-center gap-2 text-xs">
               <div className="w-4 h-4 rounded-full bg-yellow-500 border-2 border-yellow-300"></div>
-              <span className={isDark ? 'text-slate-300' : 'text-gray-700'}>Drop-off Point</span>
+              <span style={{ color: 'var(--text-secondary)' }}>Drop-off Point</span>
             </div>
           </div>
         )}
 
         {(vizMode === 'heatmap' || vizMode === 'kde' || vizMode === 'all') && (
-          <div className={`mt-3 pt-2 border-t ${isDark ? 'border-slate-600' : 'border-gray-300'}`}>
-            <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-gray-600'}`}>
+          <div className="mt-3 pt-2" style={{ borderTop: '1px solid var(--border-default)' }}>
+            <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
               {vizMode === 'kde' ? 'KDE Density' : 'Crime Density'}
             </p>
             <div className="h-2 mt-1 rounded bg-gradient-to-r from-blue-500 via-yellow-500 to-red-500"></div>
-            <div className={`flex justify-between text-[10px] mt-0.5 ${isDark ? 'text-slate-500' : 'text-gray-500'}`}>
+            <div className="flex justify-between text-[10px] mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
               <span>Low</span>
               <span>High</span>
             </div>
@@ -777,38 +823,38 @@ const CrimeMap = ({ flyToLocation, showHeatmap = true, onMarkerClick }) => {
         )}
 
         {(vizMode === 'hotspot' || vizMode === 'all') && (
-          <div className={`mt-3 pt-2 border-t ${isDark ? 'border-slate-600' : 'border-gray-300'}`}>
-            <p className={`text-xs font-medium mb-1 ${isDark ? 'text-slate-400' : 'text-gray-600'}`}>
+          <div className="mt-3 pt-2" style={{ borderTop: '1px solid var(--border-default)' }}>
+            <p className="text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
               Gi* Statistical Significance
             </p>
             <div className="space-y-1">
               <div className="flex items-center gap-2 text-[10px]">
                 <div className="w-3 h-3 rounded-full bg-red-800"></div>
-                <span className={isDark ? 'text-slate-400' : 'text-gray-600'}>Hotspot 99% CI (Z≥2.58)</span>
+                <span style={{ color: 'var(--text-secondary)' }}>Hotspot 99% CI (Z≥2.58)</span>
               </div>
               <div className="flex items-center gap-2 text-[10px]">
                 <div className="w-3 h-3 rounded-full bg-red-600"></div>
-                <span className={isDark ? 'text-slate-400' : 'text-gray-600'}>Hotspot 95% CI (Z≥1.96)</span>
+                <span style={{ color: 'var(--text-secondary)' }}>Hotspot 95% CI (Z≥1.96)</span>
               </div>
               <div className="flex items-center gap-2 text-[10px]">
                 <div className="w-3 h-3 rounded-full bg-orange-500"></div>
-                <span className={isDark ? 'text-slate-400' : 'text-gray-600'}>Hotspot 90% CI (Z≥1.65)</span>
+                <span style={{ color: 'var(--text-secondary)' }}>Hotspot 90% CI (Z≥1.65)</span>
               </div>
               <div className="flex items-center gap-2 text-[10px]">
                 <div className="w-3 h-3 rounded-full bg-gray-400"></div>
-                <span className={isDark ? 'text-slate-400' : 'text-gray-600'}>Not Significant</span>
+                <span style={{ color: 'var(--text-secondary)' }}>Not Significant</span>
               </div>
               <div className="flex items-center gap-2 text-[10px]">
                 <div className="w-3 h-3 rounded-full bg-blue-300"></div>
-                <span className={isDark ? 'text-slate-400' : 'text-gray-600'}>Coldspot 90% CI (Z≤-1.65)</span>
+                <span style={{ color: 'var(--text-secondary)' }}>Coldspot 90% CI (Z≤-1.65)</span>
               </div>
               <div className="flex items-center gap-2 text-[10px]">
                 <div className="w-3 h-3 rounded-full bg-blue-600"></div>
-                <span className={isDark ? 'text-slate-400' : 'text-gray-600'}>Coldspot 95% CI (Z≤-1.96)</span>
+                <span style={{ color: 'var(--text-secondary)' }}>Coldspot 95% CI (Z≤-1.96)</span>
               </div>
               <div className="flex items-center gap-2 text-[10px]">
                 <div className="w-3 h-3 rounded-full bg-blue-900"></div>
-                <span className={isDark ? 'text-slate-400' : 'text-gray-600'}>Coldspot 99% CI (Z≤-2.58)</span>
+                <span style={{ color: 'var(--text-secondary)' }}>Coldspot 99% CI (Z≤-2.58)</span>
               </div>
             </div>
           </div>

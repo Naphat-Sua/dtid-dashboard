@@ -273,6 +273,61 @@ class DatabaseService {
   async getNetworkGraph(personId, depth = 2) {
     return this.request(`/analytics/network/${personId}?depth=${depth}`);
   }
+
+  // ============================================================
+  // Person-Location Operations
+  // ============================================================
+
+  async getPersonLocations() {
+    return this.request('/person-locations');
+  }
+
+  async createPersonLocation(data) {
+    return this.request('/person-locations', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // ============================================================
+  // CSV Upload
+  // ============================================================
+
+  async uploadCsv(file) {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const url = `${this.baseUrl}/upload/csv`;
+    const response = await fetch(url, {
+      method: 'POST',
+      body: formData,
+      // Note: Do NOT set Content-Type header — browser sets it with boundary
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Upload failed' }));
+      throw new Error(error.message || `HTTP ${response.status}`);
+    }
+
+    return await response.json();
+  }
+
+  // ============================================================
+  // Health Check
+  // ============================================================
+
+  async healthCheck() {
+    return this.request('/health');
+  }
+
+  // ============================================================
+  // Fetch all data at once (for store hydration)
+  // Uses the aggregate /api/all endpoint — 1 round trip instead of 5
+  // ============================================================
+
+  async fetchAllData() {
+    return this.request('/all');
+  }
 }
 
 // Singleton instance

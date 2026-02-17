@@ -12,12 +12,13 @@ import {
   Shield,
   Activity
 } from 'lucide-react';
-import { useDataStore, useThemeStore } from '../store/useStore';
+import { useDataStore } from '../store/useStore';
+import { useShallow } from 'zustand/react/shallow';
 
 const StatsPanel = () => {
-  const { theme } = useThemeStore();
-  const isDark = theme === 'dark';
-  const { persons, cases, drugSeizures } = useDataStore();
+  const { persons, cases, drugSeizures } = useDataStore(
+    useShallow(s => ({ persons: s.persons, cases: s.cases, drugSeizures: s.drugSeizures }))
+  );
 
   // Calculate stats from store data
   const stats = useMemo(() => {
@@ -55,104 +56,76 @@ const StatsPanel = () => {
     return num.toString();
   };
 
-  // Drug type colors
+  // Drug type living colors
   const drugColors = {
-    'Methamphetamine': { bg: 'bg-red-500', ring: 'ring-red-500/30' },
-    'Crystal Meth': { bg: 'bg-purple-500', ring: 'ring-purple-500/30' },
-    'Heroin': { bg: 'bg-orange-500', ring: 'ring-orange-500/30' },
-    'Ketamine': { bg: 'bg-blue-500', ring: 'ring-blue-500/30' },
-    'Ecstasy': { bg: 'bg-pink-500', ring: 'ring-pink-500/30' },
-    'Cannabis': { bg: 'bg-green-500', ring: 'ring-green-500/30' }
+    'Methamphetamine': { color: 'var(--accent-red)', glow: 'var(--glow-red)' },
+    'Crystal Meth': { color: 'var(--accent-purple)', glow: 'var(--glow-purple)' },
+    'Heroin': { color: 'var(--accent-orange)', glow: 'rgba(255, 159, 10, 0.25)' },
+    'Ketamine': { color: 'var(--accent-blue)', glow: 'var(--glow-blue)' },
+    'Ecstasy': { color: 'var(--accent-pink)', glow: 'rgba(255, 55, 95, 0.25)' },
+    'Cannabis': { color: 'var(--accent-green)', glow: 'var(--glow-green)' }
   };
+
+  const metricCards = [
+    { icon: Briefcase, label: 'Active Cases', value: stats.activeCases, sub: `of ${stats.totalCases} total`, accent: 'var(--accent-blue)', glow: 'var(--glow-blue)' },
+    { icon: Shield, label: 'Arrests', value: stats.totalArrests, sub: 'individuals', accent: 'var(--accent-red)', glow: 'var(--glow-red)' },
+    { icon: Target, label: 'Active Targets', value: stats.totalSuspects, sub: 'under surveillance', accent: 'var(--accent-orange)', glow: 'rgba(255,159,10,0.2)' },
+    { icon: Scale, label: 'Seizures', value: drugSeizures.length, sub: 'drug batches', accent: 'var(--accent-purple)', glow: 'var(--glow-purple)' },
+  ];
 
   return (
     <div className="space-y-5">
-      {/* Key Metrics - Tactical Style */}
+      {/* Key Metrics — Spatial glass cards */}
       <div className="grid grid-cols-2 gap-3">
-        {/* Active Cases */}
-        <div className={`relative overflow-hidden rounded-xl p-4 
-          ${isDark ? 'bg-slate-800/50 ring-1 ring-slate-700' : 'bg-white ring-1 ring-gray-200 shadow-sm'}`}>
-          <div className={`absolute top-0 right-0 w-16 h-16 rounded-bl-full 
-            ${isDark ? 'bg-blue-500/10' : 'bg-blue-100'}`}></div>
-          <Briefcase className={`w-5 h-5 mb-2 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
-          <p className={`text-[10px] uppercase tracking-wider font-semibold mb-1
-            ${isDark ? 'text-slate-500' : 'text-gray-500'}`}>Active Cases</p>
-          <p className="text-2xl font-bold font-mono">{stats.activeCases}</p>
-          <p className={`text-[10px] mt-1 ${isDark ? 'text-slate-500' : 'text-gray-400'}`}>
-            of {stats.totalCases} total
-          </p>
-        </div>
-
-        {/* Arrests */}
-        <div className={`relative overflow-hidden rounded-xl p-4 
-          ${isDark ? 'bg-slate-800/50 ring-1 ring-slate-700' : 'bg-white ring-1 ring-gray-200 shadow-sm'}`}>
-          <div className={`absolute top-0 right-0 w-16 h-16 rounded-bl-full 
-            ${isDark ? 'bg-red-500/10' : 'bg-red-100'}`}></div>
-          <Shield className={`w-5 h-5 mb-2 ${isDark ? 'text-red-400' : 'text-red-600'}`} />
-          <p className={`text-[10px] uppercase tracking-wider font-semibold mb-1
-            ${isDark ? 'text-slate-500' : 'text-gray-500'}`}>Arrests</p>
-          <p className="text-2xl font-bold font-mono">{stats.totalArrests}</p>
-          <p className={`text-[10px] mt-1 ${isDark ? 'text-slate-500' : 'text-gray-400'}`}>
-            individuals
-          </p>
-        </div>
-
-        {/* Active Suspects */}
-        <div className={`relative overflow-hidden rounded-xl p-4 
-          ${isDark ? 'bg-slate-800/50 ring-1 ring-slate-700' : 'bg-white ring-1 ring-gray-200 shadow-sm'}`}>
-          <div className={`absolute top-0 right-0 w-16 h-16 rounded-bl-full 
-            ${isDark ? 'bg-amber-500/10' : 'bg-amber-100'}`}></div>
-          <Target className={`w-5 h-5 mb-2 ${isDark ? 'text-amber-400' : 'text-amber-600'}`} />
-          <p className={`text-[10px] uppercase tracking-wider font-semibold mb-1
-            ${isDark ? 'text-slate-500' : 'text-gray-500'}`}>Active Targets</p>
-          <p className="text-2xl font-bold font-mono">{stats.totalSuspects}</p>
-          <p className={`text-[10px] mt-1 ${isDark ? 'text-slate-500' : 'text-gray-400'}`}>
-            under surveillance
-          </p>
-        </div>
-
-        {/* Seizures */}
-        <div className={`relative overflow-hidden rounded-xl p-4 
-          ${isDark ? 'bg-slate-800/50 ring-1 ring-slate-700' : 'bg-white ring-1 ring-gray-200 shadow-sm'}`}>
-          <div className={`absolute top-0 right-0 w-16 h-16 rounded-bl-full 
-            ${isDark ? 'bg-purple-500/10' : 'bg-purple-100'}`}></div>
-          <Scale className={`w-5 h-5 mb-2 ${isDark ? 'text-purple-400' : 'text-purple-600'}`} />
-          <p className={`text-[10px] uppercase tracking-wider font-semibold mb-1
-            ${isDark ? 'text-slate-500' : 'text-gray-500'}`}>Seizures</p>
-          <p className="text-2xl font-bold font-mono">{drugSeizures.length}</p>
-          <p className={`text-[10px] mt-1 ${isDark ? 'text-slate-500' : 'text-gray-400'}`}>
-            drug batches
-          </p>
-        </div>
+        {metricCards.map((card, i) => (
+          <div key={i} className="spatial-card relative overflow-hidden rounded-2xl p-4"
+            style={{ animationDelay: `${i * 60}ms` }}>
+            <div className="absolute top-0 right-0 w-16 h-16 rounded-bl-[20px] opacity-[0.06]"
+              style={{ background: card.accent }} />
+            <card.icon className="w-5 h-5 mb-2" style={{ color: card.accent }} />
+            <p className="text-[10px] font-bold mb-1" style={{ letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-quaternary)' }}>
+              {card.label}
+            </p>
+            <p className="text-2xl font-bold" style={{ letterSpacing: '-0.03em', fontFeatureSettings: '"tnum"', color: 'var(--text-primary)' }}>
+              {card.value}
+            </p>
+            <p className="text-[10px] mt-1" style={{ color: 'var(--text-quaternary)' }}>{card.sub}</p>
+          </div>
+        ))}
       </div>
 
-      {/* Drug Seizures by Type */}
-      <div className={`rounded-xl p-4 ${isDark ? 'bg-slate-800/50 ring-1 ring-slate-700' : 'bg-white ring-1 ring-gray-200 shadow-sm'}`}>
-        <h3 className={`text-[10px] uppercase tracking-wider font-semibold mb-4 flex items-center gap-2
-          ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>
+      {/* Drug Seizures — Living color bars */}
+      <div className="spatial-card rounded-2xl p-4">
+        <h3 className="text-[10px] font-bold mb-4 flex items-center gap-2"
+          style={{ letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-quaternary)' }}>
           <Pill className="w-3.5 h-3.5" />
           Seizure Analysis
         </h3>
-        <div className="space-y-3">
+        <div className="space-y-3.5">
           {stats.drugStats.map((drug, idx) => {
             const maxQuantity = Math.max(...stats.drugStats.map(d => d.totalQuantity));
             const percentage = (drug.totalQuantity / maxQuantity) * 100;
-            const colors = drugColors[drug.type] || { bg: 'bg-slate-500', ring: 'ring-slate-500/30' };
+            const colors = drugColors[drug.type] || { color: 'var(--accent-cyan)', glow: 'rgba(100,210,255,0.2)' };
             
             return (
               <div key={idx}>
                 <div className="flex justify-between items-center mb-1.5">
-                  <span className={`text-xs font-medium ${isDark ? 'text-slate-300' : 'text-gray-700'}`}>
+                  <span className="text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
                     {drug.type}
                   </span>
-                  <span className={`text-xs font-mono ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>
+                  <span className="text-xs font-semibold" style={{ fontFeatureSettings: '"tnum"', color: 'var(--text-tertiary)' }}>
                     {formatNumber(drug.totalQuantity)} {drug.unit}
                   </span>
                 </div>
-                <div className={`h-2 ${isDark ? 'bg-slate-700' : 'bg-gray-100'} rounded-full overflow-hidden`}>
+                <div className="h-2 rounded-full overflow-hidden" style={{ background: 'var(--glass-thin)' }}>
                   <div 
-                    className={`h-full rounded-full ${colors.bg} transition-all duration-500`}
-                    style={{ width: `${percentage}%` }}
+                    className="h-full rounded-full transition-all duration-700"
+                    style={{ 
+                      width: `${percentage}%`, 
+                      background: colors.color,
+                      boxShadow: `0 0 12px ${colors.glow}`,
+                      animationDelay: `${idx * 100}ms`
+                    }}
                   />
                 </div>
               </div>
@@ -161,65 +134,66 @@ const StatsPanel = () => {
         </div>
       </div>
 
-      {/* Recent Cases */}
-      <div className={`rounded-xl p-4 ${isDark ? 'bg-slate-800/50 ring-1 ring-slate-700' : 'bg-white ring-1 ring-gray-200 shadow-sm'}`}>
-        <h3 className={`text-[10px] uppercase tracking-wider font-semibold mb-4 flex items-center gap-2
-          ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>
+      {/* Recent Cases — Spatial timeline */}
+      <div className="spatial-card rounded-2xl p-4">
+        <h3 className="text-[10px] font-bold mb-4 flex items-center gap-2"
+          style={{ letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-quaternary)' }}>
           <Activity className="w-3.5 h-3.5" />
           Recent Activity
         </h3>
         <div className="space-y-3">
-          {recentCases.map((c, idx) => (
-            <div 
-              key={c.CaseID} 
-              className={`rounded-lg p-3 border-l-3 transition-all
-                ${isDark 
-                  ? 'bg-slate-700/30 border-l-blue-500 hover:bg-slate-700/50' 
-                  : 'bg-gray-50 border-l-blue-500 hover:bg-gray-100'}`}
-              style={{ borderLeftWidth: '3px' }}
-            >
-              <div className="flex justify-between items-start mb-2">
-                <span className={`font-mono text-xs ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>
-                  {c.CaseNumber}
-                </span>
-                <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium
-                  ${c.Status === 'Under Investigation' 
-                    ? 'bg-amber-500/20 text-amber-500' 
-                    : c.Status === 'Adjudicated' 
-                    ? 'bg-green-500/20 text-green-500' 
-                    : 'bg-blue-500/20 text-blue-400'}`}>
-                  {c.Status}
-                </span>
+          {recentCases.map((c, idx) => {
+            const statusStyle = c.Status === 'Under Investigation'
+              ? { background: 'rgba(255, 159, 10, 0.1)', color: 'var(--accent-orange)', border: '1px solid rgba(255, 159, 10, 0.15)' }
+              : c.Status === 'Adjudicated'
+              ? { background: 'rgba(48, 209, 88, 0.1)', color: 'var(--accent-green)', border: '1px solid rgba(48, 209, 88, 0.15)' }
+              : { background: 'rgba(10, 132, 255, 0.1)', color: 'var(--accent-blue)', border: '1px solid rgba(10, 132, 255, 0.15)' };
+            
+            return (
+              <div 
+                key={c.CaseID} 
+                className="rounded-xl p-3 transition-all duration-300 cursor-default"
+                style={{ 
+                  background: 'var(--glass-thin)', 
+                  borderLeft: `3px solid var(--accent-blue)` 
+                }}
+              >
+                <div className="flex justify-between items-start mb-2">
+                  <span className="text-xs font-bold" style={{ fontFeatureSettings: '"tnum"', color: 'var(--accent-blue)' }}>
+                    {c.CaseNumber}
+                  </span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold" style={statusStyle}>
+                    {c.Status}
+                  </span>
+                </div>
+                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                  {c.CaseType}
+                </p>
+                <p className="text-[10px] mt-1.5 flex items-center gap-1.5" style={{ color: 'var(--text-quaternary)' }}>
+                  <Clock className="w-3 h-3" />
+                  {new Date(c.ArrestDate).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric'
+                  })}
+                </p>
               </div>
-              <p className={`text-sm font-medium ${isDark ? 'text-slate-200' : 'text-gray-800'}`}>
-                {c.CaseType}
-              </p>
-              <p className={`text-[10px] mt-1.5 flex items-center gap-1.5 ${isDark ? 'text-slate-500' : 'text-gray-500'}`}>
-                <Clock className="w-3 h-3" />
-                {new Date(c.ArrestDate).toLocaleDateString('en-US', {
-                  year: 'numeric',
-                  month: 'short',
-                  day: 'numeric'
-                })}
-              </p>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
-      {/* Quick Overview */}
-      <div className={`rounded-xl p-4 ${isDark 
-        ? 'bg-gradient-to-br from-blue-900/30 to-slate-800/50 ring-1 ring-blue-500/20' 
-        : 'bg-gradient-to-br from-blue-50 to-white ring-1 ring-blue-200'}`}>
+      {/* Operation Summary — Ambient glass callout */}
+      <div className="rounded-2xl p-4 siri-glow" style={{ background: 'var(--glass-regular)', border: '1px solid var(--border-subtle)' }}>
         <div className="flex items-center gap-2 mb-3">
-          <TrendingUp className={`w-4 h-4 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
-          <span className={`text-xs font-semibold ${isDark ? 'text-blue-300' : 'text-blue-700'}`}>
+          <TrendingUp className="w-4 h-4" style={{ color: 'var(--accent-blue)' }} />
+          <span className="text-xs font-bold" style={{ color: 'var(--accent-blue)' }}>
             Operation Summary
           </span>
         </div>
-        <p className={`text-xs leading-relaxed ${isDark ? 'text-slate-400' : 'text-gray-600'}`}>
-          Monitoring <span className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>{stats.totalSuspects + stats.totalArrests}</span> individuals 
-          across <span className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>{stats.totalCases}</span> active investigations. 
+        <p className="text-xs leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
+          Monitoring <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{stats.totalSuspects + stats.totalArrests}</span> individuals 
+          across <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{stats.totalCases}</span> active investigations. 
           Primary focus: Methamphetamine networks near the Myanmar-Thailand border.
         </p>
       </div>

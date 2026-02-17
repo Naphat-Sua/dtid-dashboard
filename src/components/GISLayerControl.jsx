@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { GeoJSON, Marker, Popup, Polyline, Polygon, CircleMarker, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { Layers, Eye, EyeOff, MapPin, Route, Square, AlertCircle } from 'lucide-react';
-import { useThemeStore } from '../store/useStore';
 
 // Performance limits
 const MAX_POINTS = 500;
@@ -13,15 +12,14 @@ const MAX_POLYGONS = 200;
  * GIS Layer Control Component
  * Manages point, line, and polygon layers from shapefiles
  */
-const GISLayerControl = ({ gisLayers, onLayerToggle }) => {
-  const { theme } = useThemeStore();
-  const isDark = theme === 'dark';
+const GISLayerControl = ({ gisLayers, onLayerToggle, visibleLayers: externalVisibleLayers }) => {
   
-  // Layer visibility state
+  // Layer visibility state — synced from parent when provided
   const [visibleLayers, setVisibleLayers] = useState({
     // Point layers
     schools: false,
     tambonCentroids: false,
+    policeStations: false,
     
     // Line layers
     roads: false,
@@ -31,6 +29,19 @@ const GISLayerControl = ({ gisLayers, onLayerToggle }) => {
     amphoe: false,
     forests: false
   });
+
+  // Sync with parent state (for mutual-exclusion base layer toggle)
+  useEffect(() => {
+    if (externalVisibleLayers) {
+      setVisibleLayers(prev => {
+        const next = { ...prev };
+        for (const key of Object.keys(externalVisibleLayers)) {
+          if (key in next) next[key] = externalVisibleLayers[key];
+        }
+        return next;
+      });
+    }
+  }, [externalVisibleLayers]);
 
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -58,6 +69,13 @@ const GISLayerControl = ({ gisLayers, onLayerToggle }) => {
       icon: MapPin,
       color: '#8b5cf6',
       description: 'Sub-district center points'
+    },
+    policeStations: {
+      name: 'Police Stations',
+      type: 'point',
+      icon: AlertCircle,
+      color: '#3b82f6',
+      description: 'Thai police stations + jurisdiction'
     },
     
     // Line Layers
@@ -94,35 +112,34 @@ const GISLayerControl = ({ gisLayers, onLayerToggle }) => {
   };
 
   return (
-    <div className={`absolute top-4 right-4 z-[1000] rounded-lg shadow-lg backdrop-blur-sm
-      ${isDark ? 'bg-slate-900/90' : 'bg-white/90'}`}
+    <div className="absolute top-4 right-4 z-[800] rounded-2xl glass-floating"
       style={{ maxWidth: '280px' }}
     >
       {/* Header */}
       <div 
-        className={`flex items-center justify-between p-3 cursor-pointer
-          ${isDark ? 'hover:bg-slate-800' : 'hover:bg-gray-100'} rounded-t-lg`}
+        className="flex items-center justify-between p-3 cursor-pointer rounded-t-2xl transition-all duration-300"
         onClick={() => setIsExpanded(!isExpanded)}
+        style={{ color: 'var(--text-primary)' }}
       >
         <div className="flex items-center gap-2">
-          <Layers className={`w-5 h-5 ${isDark ? 'text-cyan-400' : 'text-blue-600'}`} />
-          <span className={`font-semibold text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
+          <Layers className="w-5 h-5" style={{ color: 'var(--accent-blue)' }} />
+          <span className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>
             GIS Layers
           </span>
         </div>
-        <span className={`text-xs ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>
+        <span className="text-xs" style={{ color: 'var(--text-quaternary)' }}>
           {isExpanded ? '▼' : '▶'}
         </span>
       </div>
 
       {/* Layer List */}
       {isExpanded && (
-        <div className="p-3 border-t border-slate-700">
+        <div className="p-3" style={{ borderTop: '1px solid var(--border-subtle)' }}>
           {/* Point Layers Section */}
           <div className="mb-4">
             <div className="flex items-center gap-2 mb-2">
-              <MapPin className={`w-4 h-4 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
-              <span className={`text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-gray-700'}`}>
+              <MapPin className="w-4 h-4" style={{ color: 'var(--accent-blue)' }} />
+              <span className="text-[10px] font-bold" style={{ letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-quaternary)' }}>
                 Point Layers
               </span>
             </div>
@@ -136,7 +153,7 @@ const GISLayerControl = ({ gisLayers, onLayerToggle }) => {
                     layer={layer}
                     isVisible={visibleLayers[key]}
                     onToggle={toggleLayer}
-                    isDark={isDark}
+
                   />
                 ))}
             </div>
@@ -145,8 +162,8 @@ const GISLayerControl = ({ gisLayers, onLayerToggle }) => {
           {/* Line Layers Section */}
           <div className="mb-4">
             <div className="flex items-center gap-2 mb-2">
-              <Route className={`w-4 h-4 ${isDark ? 'text-orange-400' : 'text-orange-600'}`} />
-              <span className={`text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-gray-700'}`}>
+              <Route className="w-4 h-4" style={{ color: 'var(--accent-orange)' }} />
+              <span className="text-[10px] font-bold" style={{ letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-quaternary)' }}>
                 Line Layers
               </span>
             </div>
@@ -160,7 +177,7 @@ const GISLayerControl = ({ gisLayers, onLayerToggle }) => {
                     layer={layer}
                     isVisible={visibleLayers[key]}
                     onToggle={toggleLayer}
-                    isDark={isDark}
+
                   />
                 ))}
             </div>
@@ -169,8 +186,8 @@ const GISLayerControl = ({ gisLayers, onLayerToggle }) => {
           {/* Polygon Layers Section */}
           <div>
             <div className="flex items-center gap-2 mb-2">
-              <Square className={`w-4 h-4 ${isDark ? 'text-green-400' : 'text-green-600'}`} />
-              <span className={`text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-gray-700'}`}>
+              <Square className="w-4 h-4" style={{ color: 'var(--accent-green)' }} />
+              <span className="text-[10px] font-bold" style={{ letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-quaternary)' }}>
                 Polygon Layers
               </span>
             </div>
@@ -184,7 +201,7 @@ const GISLayerControl = ({ gisLayers, onLayerToggle }) => {
                     layer={layer}
                     isVisible={visibleLayers[key]}
                     onToggle={toggleLayer}
-                    isDark={isDark}
+
                   />
                 ))}
             </div>
@@ -198,19 +215,16 @@ const GISLayerControl = ({ gisLayers, onLayerToggle }) => {
 /**
  * Individual layer toggle button
  */
-const LayerToggleButton = ({ layerKey, layer, isVisible, onToggle, isDark }) => {
+const LayerToggleButton = ({ layerKey, layer, isVisible, onToggle }) => {
   return (
     <button
       onClick={() => onToggle(layerKey)}
-      className={`w-full flex items-center justify-between px-2 py-1.5 rounded text-xs transition-colors
-        ${isVisible
-          ? isDark
-            ? 'bg-slate-700 text-white'
-            : 'bg-gray-200 text-gray-900'
-          : isDark
-            ? 'text-slate-400 hover:bg-slate-800'
-            : 'text-gray-600 hover:bg-gray-100'
-        }`}
+      className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs transition-all duration-300"
+      style={isVisible
+        ? { background: 'var(--glass-regular)', color: 'var(--text-primary)' }
+        : { color: 'var(--text-tertiary)' }}
+      onMouseOver={e => { if(!isVisible) e.currentTarget.style.background = 'var(--glass-thin)'; }}
+      onMouseOut={e => { if(!isVisible) e.currentTarget.style.background = 'transparent'; }}
     >
       <div className="flex items-center gap-2">
         <div 
@@ -233,8 +247,6 @@ const LayerToggleButton = ({ layerKey, layer, isVisible, onToggle, isDark }) => 
  * Uses Canvas rendering and feature limits for large datasets
  */
 export const GISLayers = ({ gisLayers, visibleLayers }) => {
-  const { theme } = useThemeStore();
-  const isDark = theme === 'dark';
   const map = useMap();
   const canvasRendererRef = useRef(null);
 
@@ -403,9 +415,7 @@ export const GISLayers = ({ gisLayers, visibleLayers }) => {
       {gisLayers.lines?.roads && 
         renderLineLayer(gisLayers.lines.roads, 'roads')}
 
-      {/* Polygon Layers */}
-      {gisLayers.polygons?.provinces && 
-        renderPolygonLayer(gisLayers.polygons.provinces, 'provinces')}
+      {/* Polygon Layers — provinces handled by ProvinceLayer in CrimeMap */}
       {gisLayers.polygons?.amphoe && 
         renderPolygonLayer(gisLayers.polygons.amphoe, 'amphoe')}
       {gisLayers.polygons?.forests && 

@@ -1,22 +1,27 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { 
-  persons as initialPersons, 
-  cases as initialCases, 
-  drugSeizures as initialSeizures,
-  locations as initialLocations,
-  casePersons as initialPersonCases,
-  relationships as initialPersonNetwork,
-  personContacts as initialPersonContacts,
-  personLocations as initialPersonLocations
-} from '../data/mockData';
 import { dbService } from '../services/dbService';
+
+// ── Mock data is now lazy-loaded, not statically imported ──
+// This removes ~30 KB from the initial bundle.  The mock arrays
+// are only fetched when resetData() is explicitly called.
+let _mockDataCache = null;
+const loadMockData = async () => {
+  if (!_mockDataCache) {
+    _mockDataCache = await import('../data/mockData');
+  }
+  return _mockDataCache;
+};
+
+// Empty arrays used as initial state (hydrated from localStorage
+// via Zustand persist, or from the database via loadFromDatabase).
+const EMPTY = [];
 
 // Theme Store - persisted to localStorage
 export const useThemeStore = create(
   persist(
     (set) => ({
-      theme: 'dark', // 'light' | 'dark'
+      theme: 'light', // 'light' | 'dark'
       toggleTheme: () => set((state) => ({ 
         theme: state.theme === 'dark' ? 'light' : 'dark' 
       })),
@@ -44,15 +49,19 @@ export const useDataStore = create(
       isLoading: false,
       lastError: null,
 
-      // Data
-      persons: [...initialPersons],
-      cases: [...initialCases],
-      drugSeizures: [...initialSeizures],
-      locations: [...initialLocations],
-      personCases: [...initialPersonCases],
-      personNetwork: [...initialPersonNetwork],
-      personContacts: [...initialPersonContacts],
-      personLocations: [...initialPersonLocations],
+      // Data — starts empty; hydrated by persist middleware or loadFromDatabase
+      persons: EMPTY,
+      cases: EMPTY,
+      drugSeizures: EMPTY,
+      locations: EMPTY,
+      personCases: EMPTY,
+      personNetwork: EMPTY,
+      personContacts: EMPTY,
+      personLocations: EMPTY,
+
+      // Province filter — selected province for spatial scoping
+      selectedProvince: null,
+      setSelectedProvince: (province) => set({ selectedProvince: province }),
 
       // Set database mode
       setDbMode: (mode) => set({ dbMode: mode }),
@@ -586,6 +595,38 @@ export const useDataStore = create(
         }
       },
 
+      /**
+       * Refresh all data from the PostgreSQL/PostGIS database.
+       * Called after CSV import or any external data change.
+       * Maps DB snake_case keys (already camelCased by the API) to store fields.
+       */
+      refreshFromDatabase: async () => {
+        set({ isLoading: true, lastError: null });
+        try {
+          const data = await dbService.fetchAllData();
+
+          // Map API field names → store field names
+          // The API returns camelCase: personId, caseId, etc.
+          // The store expects PascalCase: PersonID, CaseID, etc. (from mockData)
+          // The camelCase→PascalCase mapping is handled naturally because
+          // both the store and API use the same key names now.
+
+          set({
+            persons: data.persons || [],
+            cases: data.cases || [],
+            locations: data.locations || [],
+            personNetwork: data.relationships || [],
+            personLocations: data.personLocations || [],
+            isLoading: false,
+            lastError: null
+          });
+        } catch (error) {
+          console.error('Failed to refresh data from database:', error);
+          set({ isLoading: false, lastError: error.message });
+          throw error;
+        }
+      },
+
       syncToDatabase: async () => {
         const state = get();
         set({ isLoading: true, lastError: null });
@@ -602,21 +643,39 @@ export const useDataStore = create(
         }
       },
 
-      // Reset to initial data
-      resetData: () => set({
-        persons: [...initialPersons],
-        cases: [...initialCases],
-        drugSeizures: [...initialSeizures],
-        locations: [...initialLocations],
-        personCases: [...initialPersonCases],
-        personNetwork: [...initialPersonNetwork],
-        personContacts: [...initialPersonContacts],
-        personLocations: [...initialPersonLocations],
-        lastError: null
-      })
+      // Reset to initial mock data (lazy-loaded on demand)
+      resetData: async () => {
+        set({ isLoading: true });
+        try {
+          const mock = await loadMockData();
+          set({
+            persons: [...mock.persons],
+            cases: [...mock.cases],
+            drugSeizures: [...mock.drugSeizures],
+            locations: [...mock.locations],
+            personCases: [...mock.casePersons],
+            personNetwork: [...mock.relationships],
+            personContacts: [...mock.personContacts],
+            personLocations: [...mock.personLocations],
+            lastError: null,
+            isLoading: false
+          });
+        } catch (error) {
+          console.error('Failed to load mock data:', error);
+          set({ isLoading: false, lastError: error.message });
+        }
+      }
     }),
     {
       name: 'dtid-data-store',
+      version: 4, // Bumped — Operation Mekong Serpent cross-provincial data added
+      migrate: () => ({
+        // Discard stale localStorage on version bump — onRehydrateStorage
+        // will re-seed from the latest mockData.
+        persons: EMPTY, cases: EMPTY, drugSeizures: EMPTY, locations: EMPTY,
+        personCases: EMPTY, personNetwork: EMPTY, personContacts: EMPTY,
+        personLocations: EMPTY, dbMode: DB_MODE.LOCAL,
+      }),
       partialize: (state) => ({
         persons: state.persons,
         cases: state.cases,
@@ -627,7 +686,25 @@ export const useDataStore = create(
         personContacts: state.personContacts,
         personLocations: state.personLocations,
         dbMode: state.dbMode
-      })
+      }),
+      // When localStorage is empty (first visit or version bump),
+      // automatically seed the store with mock data.
+      onRehydrateStorage: () => (state) => {
+        if (state && state.persons.length === 0) {
+          loadMockData().then(mock => {
+            useDataStore.setState({
+              persons: [...mock.persons],
+              cases: [...mock.cases],
+              drugSeizures: [...mock.drugSeizures],
+              locations: [...mock.locations],
+              personCases: [...mock.casePersons],
+              personNetwork: [...mock.relationships],
+              personContacts: [...mock.personContacts],
+              personLocations: [...mock.personLocations],
+            });
+          });
+        }
+      },
     }
   )
 );

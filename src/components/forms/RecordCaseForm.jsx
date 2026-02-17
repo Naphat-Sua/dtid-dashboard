@@ -15,7 +15,7 @@ import {
   Pill,
   MapPin
 } from 'lucide-react';
-import { useDataStore, useThemeStore } from '../../store/useStore';
+import { useDataStore } from '../../store/useStore';
 import LocationPicker from '../LocationPicker';
 
 // Validation schema for seizure (matches DRUG_SEIZURE table)
@@ -115,8 +115,6 @@ const PERSON_ROLES = [
 ];
 
 const RecordCaseForm = ({ onClose, onSuccess }) => {
-  const { theme } = useThemeStore();
-  const isDark = theme === 'dark';
   const { addCase, addLocation, persons, cases } = useDataStore();
   
   const [selectedLocation, setSelectedLocation] = useState(null);
@@ -260,19 +258,18 @@ const RecordCaseForm = ({ onClose, onSuccess }) => {
   };
 
   return (
-    <div className={`rounded-xl overflow-hidden ${isDark ? 'bg-slate-800' : 'bg-white'}`}>
+    <div className={"rounded-xl overflow-hidden"}>
       {/* Header */}
-      <div className={`px-6 py-4 border-b flex items-center justify-between
-        ${isDark ? 'bg-slate-900 border-slate-700' : 'bg-gray-50 border-gray-200'}`}>
+      <div className={"px-6 py-4 border-b flex items-center justify-between"}>
         <div className="flex items-center gap-3">
-          <div className={`p-2 rounded-lg ${isDark ? 'bg-amber-600' : 'bg-amber-500'}`}>
+          <div className={"p-2 rounded-xl"}>
             <Briefcase className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h3 className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+            <h3 className={"font-semibold"}>
               บันทึกคดีใหม่
             </h3>
-            <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>
+            <p className={"text-xs"}>
               บันทึกข้อมูลคดียาเสพติดและผู้ที่เกี่ยวข้อง
             </p>
           </div>
@@ -280,8 +277,7 @@ const RecordCaseForm = ({ onClose, onSuccess }) => {
         {onClose && (
           <button
             onClick={onClose}
-            className={`p-2 rounded-lg transition-colors
-              ${isDark ? 'hover:bg-slate-700' : 'hover:bg-gray-200'}`}
+            className={"p-2 rounded-xl transition-colors"}
           >
             <X className="w-5 h-5" />
           </button>
@@ -379,7 +375,7 @@ const RecordCaseForm = ({ onClose, onSuccess }) => {
         </div>
 
         {/* Location Section */}
-        <div className={`p-4 rounded-lg ${isDark ? 'bg-slate-900/50' : 'bg-gray-50'}`}>
+        <div className={"p-4 rounded-xl"}>
           <div className="flex items-center gap-2 mb-3">
             <MapPin className="w-4 h-4" />
             <label className="form-label mb-0">สถานที่เกิดเหตุ/จับกุม</label>
@@ -453,21 +449,20 @@ const RecordCaseForm = ({ onClose, onSuccess }) => {
         </div>
 
         {/* Involved Persons Section */}
-        <div className={`p-4 rounded-lg ${isDark ? 'bg-slate-900/50' : 'bg-gray-50'}`}>
+        <div className={"p-4 rounded-xl"}>
           <div className="flex items-center justify-between mb-3">
             <label className="form-label mb-0 flex items-center gap-2">
               <UserPlus className="w-4 h-4" />
               บุคคลที่เกี่ยวข้องในคดี
             </label>
-            <span className={`text-xs ${isDark ? 'text-slate-500' : 'text-gray-500'}`}>
+            <span className={"text-xs"}>
               {involvedPersons.length} คน
             </span>
           </div>
 
           {/* Person Search */}
           <div className="relative mb-3">
-            <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 
-              ${isDark ? 'text-slate-400' : 'text-gray-400'}`} />
+            <Search className={"absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4"} />
             <input
               type="text"
               value={personSearch}
@@ -482,16 +477,14 @@ const RecordCaseForm = ({ onClose, onSuccess }) => {
             
             {/* Dropdown */}
             {showPersonDropdown && personSearch && (
-              <div className={`absolute z-10 w-full mt-1 rounded-lg shadow-lg max-h-48 overflow-y-auto
-                ${isDark ? 'bg-slate-800 border border-slate-600' : 'bg-white border border-gray-200'}`}>
+              <div className={"absolute z-10 w-full mt-1 rounded-xl shadow-lg max-h-48 overflow-y-auto"}>
                 {filteredPersons.length > 0 ? (
                   filteredPersons.slice(0, 5).map(person => (
                     <button
                       key={person.PersonID}
                       type="button"
                       onClick={() => addInvolvedPerson(person)}
-                      className={`w-full px-4 py-2 text-left flex items-center gap-3 transition-colors
-                        ${isDark ? 'hover:bg-slate-700' : 'hover:bg-gray-100'}`}
+                      className={"w-full px-4 py-2 text-left flex items-center gap-3 transition-colors"}
                     >
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm
                         ${person.Status === 'Arrested' ? 'bg-red-600' : 
@@ -500,10 +493,10 @@ const RecordCaseForm = ({ onClose, onSuccess }) => {
                         {person.FirstName[0]}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className={`text-sm font-medium truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                        <p className={"text-sm font-medium truncate"}>
                           {person.FirstName} {person.LastName}
                         </p>
-                        <p className={`text-xs truncate ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>
+                        <p className={"text-xs truncate"}>
                           "{person.Alias}" • {person.NationalID}
                         </p>
                       </div>
@@ -511,7 +504,7 @@ const RecordCaseForm = ({ onClose, onSuccess }) => {
                     </button>
                   ))
                 ) : (
-                  <p className={`px-4 py-3 text-sm ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>
+                  <p className={"px-4 py-3 text-sm"}>
                     ไม่พบบุคคลที่ค้นหา
                   </p>
                 )}
@@ -525,8 +518,7 @@ const RecordCaseForm = ({ onClose, onSuccess }) => {
               {involvedPersons.map(({ personId, person, role, details }) => (
                 <div 
                   key={personId}
-                  className={`p-3 rounded-lg
-                    ${isDark ? 'bg-slate-800' : 'bg-white border border-gray-200'}`}
+                  className={"p-3 rounded-xl"}
                 >
                   <div className="flex flex-wrap items-center gap-3 mb-2">
                     {/* Avatar */}
@@ -538,10 +530,10 @@ const RecordCaseForm = ({ onClose, onSuccess }) => {
                     </div>
                     {/* Name Info */}
                     <div className="flex-1 min-w-[120px]">
-                      <p className={`text-sm font-medium truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      <p className={"text-sm font-medium truncate"}>
                         {person.FirstName} {person.LastName}
                       </p>
-                      <p className={`text-xs truncate ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>
+                      <p className={"text-xs truncate"}>
                         "{person.Alias}"
                       </p>
                     </div>
@@ -581,7 +573,7 @@ const RecordCaseForm = ({ onClose, onSuccess }) => {
         </div>
 
         {/* Drug Seizures Section */}
-        <div className={`p-4 rounded-lg ${isDark ? 'bg-slate-900/50' : 'bg-gray-50'}`}>
+        <div className={"p-4 rounded-xl"}>
           <div className="flex items-center justify-between mb-3">
             <label className="form-label mb-0 flex items-center gap-2">
               <Pill className="w-4 h-4" />
@@ -597,10 +589,7 @@ const RecordCaseForm = ({ onClose, onSuccess }) => {
                 StorageLocation: 'คลังเก็บของกลาง ปปส.',
                 Notes: ''
               })}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors
-                ${isDark 
-                  ? 'bg-cyan-600 hover:bg-cyan-500 text-white' 
-                  : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
+              className={"flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-colors"}
             >
               <Plus className="w-3 h-3" />
               เพิ่มของกลาง
@@ -608,7 +597,7 @@ const RecordCaseForm = ({ onClose, onSuccess }) => {
           </div>
 
           {seizureFields.length === 0 ? (
-            <p className={`text-sm py-4 text-center ${isDark ? 'text-slate-500' : 'text-gray-500'}`}>
+            <p className={"text-sm py-4 text-center"}>
               ยังไม่มีของกลาง คลิก "เพิ่มของกลาง" เพื่อบันทึกยาเสพติดที่ยึดได้
             </p>
           ) : (
@@ -616,10 +605,10 @@ const RecordCaseForm = ({ onClose, onSuccess }) => {
               {seizureFields.map((field, index) => (
                 <div 
                   key={field.id}
-                  className={`p-4 rounded-lg ${isDark ? 'bg-slate-800' : 'bg-white border border-gray-200'}`}
+                  className={"p-4 rounded-xl"}
                 >
                   <div className="flex items-center justify-between mb-3">
-                    <span className={`text-sm font-medium ${isDark ? 'text-slate-300' : 'text-gray-700'}`}>
+                    <span className={"text-sm font-medium"}>
                       ของกลางที่ #{index + 1}
                     </span>
                     <button
@@ -706,11 +695,10 @@ const RecordCaseForm = ({ onClose, onSuccess }) => {
 
         {/* Submit Status */}
         {submitStatus && (
-          <div className={`flex items-center gap-2 p-3 rounded-lg ${
-            submitStatus === 'success' 
-              ? isDark ? 'bg-green-900/30 text-green-400' : 'bg-green-50 text-green-600'
-              : isDark ? 'bg-red-900/30 text-red-400' : 'bg-red-50 text-red-600'
-          }`}>
+          <div className="flex items-center gap-2 p-3 rounded-xl"
+            style={submitStatus === 'success'
+              ? { background: 'rgba(48, 209, 88, 0.1)', color: 'var(--accent-green)' }
+              : { background: 'rgba(255, 69, 58, 0.1)', color: 'var(--accent-red)' }}>
             {submitStatus === 'success' ? (
               <>
                 <CheckCircle className="w-5 h-5" />
@@ -726,16 +714,13 @@ const RecordCaseForm = ({ onClose, onSuccess }) => {
         )}
 
         {/* Actions */}
-        <div className={`flex justify-end gap-3 pt-4 border-t 
-          ${isDark ? 'border-slate-700' : 'border-gray-200'}`}>
+        <div className="flex justify-end gap-3 pt-4" style={{ borderTop: '1px solid var(--border-subtle)' }}>
           {onClose && (
             <button
               type="button"
               onClick={onClose}
-              className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors
-                ${isDark 
-                  ? 'bg-slate-700 hover:bg-slate-600 text-slate-200' 
-                  : 'bg-gray-100 hover:bg-gray-200 text-gray-700'}`}
+              className="px-4 py-2 rounded-xl font-medium text-sm transition-all duration-300"
+              style={{ background: 'var(--glass-thin)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)' }}
             >
               ยกเลิก
             </button>
@@ -743,11 +728,8 @@ const RecordCaseForm = ({ onClose, onSuccess }) => {
           <button
             type="submit"
             disabled={isSubmitting}
-            className={`flex items-center gap-2 px-6 py-2 rounded-lg font-medium text-sm transition-colors
-              ${isDark 
-                ? 'bg-amber-600 hover:bg-amber-500 text-white disabled:bg-slate-600' 
-                : 'bg-amber-500 hover:bg-amber-600 text-white disabled:bg-gray-400'}
-              disabled:cursor-not-allowed`}
+            className="flex items-center gap-2 px-6 py-2 rounded-xl font-semibold text-sm transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed"
+            style={{ background: 'var(--accent-blue)', color: 'white', boxShadow: '0 4px 12px rgba(10,132,255,0.3)' }}
           >
             <Save className="w-4 h-4" />
             {isSubmitting ? 'กำลังบันทึก...' : 'บันทึกคดี'}

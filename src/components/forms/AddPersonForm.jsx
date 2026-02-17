@@ -13,7 +13,7 @@ import {
   Plus,
   Trash2
 } from 'lucide-react';
-import { useDataStore, useThemeStore } from '../../store/useStore';
+import { useDataStore } from '../../store/useStore';
 import LocationPicker from '../LocationPicker';
 
 // Contact validation schema (matches PERSON_CONTACT table)
@@ -72,8 +72,6 @@ const STATUS_OPTIONS = [
 ];
 
 const AddPersonForm = ({ onClose, onSuccess }) => {
-  const { theme } = useThemeStore();
-  const isDark = theme === 'dark';
   const { addPerson, addLocation, persons } = useDataStore();
   
   const [selectedLocation, setSelectedLocation] = useState(null);
@@ -206,19 +204,19 @@ const AddPersonForm = ({ onClose, onSuccess }) => {
   };
 
   return (
-    <div className={`rounded-xl overflow-hidden ${isDark ? 'bg-slate-800' : 'bg-white'}`}>
+    <div className="spatial-card rounded-2xl overflow-hidden">
       {/* Header */}
-      <div className={`px-6 py-4 border-b flex items-center justify-between
-        ${isDark ? 'bg-slate-900 border-slate-700' : 'bg-gray-50 border-gray-200'}`}>
+      <div className="px-6 py-4 flex items-center justify-between"
+        style={{ background: 'var(--glass-thin)', borderBottom: '1px solid var(--border-subtle)' }}>
         <div className="flex items-center gap-3">
-          <div className={`p-2 rounded-lg ${isDark ? 'bg-cyan-600' : 'bg-blue-600'}`}>
+          <div className="p-2 rounded-xl" style={{ background: 'var(--accent-blue)' }}>
             <User className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h3 className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+            <h3 className="font-bold" style={{ color: 'var(--text-primary)' }}>
               เพิ่มบุคคลใหม่
             </h3>
-            <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>
+            <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
               บันทึกข้อมูลผู้ต้องสงสัย/บุคคลที่เกี่ยวข้อง
             </p>
           </div>
@@ -226,8 +224,10 @@ const AddPersonForm = ({ onClose, onSuccess }) => {
         {onClose && (
           <button
             onClick={onClose}
-            className={`p-2 rounded-lg transition-colors
-              ${isDark ? 'hover:bg-slate-700' : 'hover:bg-gray-200'}`}
+            className="p-2 rounded-xl transition-all duration-300"
+            style={{ color: 'var(--text-tertiary)' }}
+            onMouseOver={e => e.currentTarget.style.background = 'var(--glass-regular)'}
+            onMouseOut={e => e.currentTarget.style.background = 'transparent'}
           >
             <X className="w-5 h-5" />
           </button>
@@ -239,8 +239,8 @@ const AddPersonForm = ({ onClose, onSuccess }) => {
         {/* Photo Section */}
         <div className="flex items-start gap-6">
           <div className="flex-shrink-0">
-            <div className={`w-24 h-24 rounded-xl overflow-hidden border-2 
-              ${isDark ? 'border-slate-600 bg-slate-700' : 'border-gray-200 bg-gray-100'}`}>
+            <div className="w-24 h-24 rounded-2xl overflow-hidden"
+              style={{ border: '2px solid var(--border-subtle)', background: 'var(--glass-thin)' }}>
               {photoPreview ? (
                 <img 
                   src={photoPreview} 
@@ -250,7 +250,7 @@ const AddPersonForm = ({ onClose, onSuccess }) => {
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
-                  <Camera className={`w-8 h-8 ${isDark ? 'text-slate-500' : 'text-gray-400'}`} />
+                  <Camera className="w-8 h-8" style={{ color: 'var(--text-quaternary)' }} />
                 </div>
               )}
             </div>
@@ -265,7 +265,7 @@ const AddPersonForm = ({ onClose, onSuccess }) => {
                 className="form-input"
                 onChange={(e) => handlePhotoUrlChange(e.target.value)}
               />
-              <p className={`text-xs mt-1 ${isDark ? 'text-slate-500' : 'text-gray-500'}`}>
+              <p className="text-xs mt-1" style={{ color: 'var(--text-quaternary)' }}>
                 หากไม่ระบุจะใช้รูป Avatar อัตโนมัติ
               </p>
             </div>
@@ -406,7 +406,7 @@ const AddPersonForm = ({ onClose, onSuccess }) => {
         </div>
 
         {/* Contacts Section */}
-        <div className={`p-4 rounded-lg ${isDark ? 'bg-slate-900/50' : 'bg-gray-50'}`}>
+        <div className="p-4 rounded-2xl" style={{ background: 'var(--glass-thin)' }}>
           <div className="flex items-center justify-between mb-3">
             <label className="form-label mb-0 flex items-center gap-2">
               <Phone className="w-4 h-4" />
@@ -420,10 +420,8 @@ const AddPersonForm = ({ onClose, onSuccess }) => {
                 IsActive: true,
                 Notes: ''
               })}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors
-                ${isDark 
-                  ? 'bg-cyan-600 hover:bg-cyan-500 text-white' 
-                  : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-300"
+              style={{ background: 'var(--accent-blue)', color: 'white' }}
             >
               <Plus className="w-3 h-3" />
               เพิ่มช่องทาง
@@ -431,7 +429,7 @@ const AddPersonForm = ({ onClose, onSuccess }) => {
           </div>
 
           {contactFields.length === 0 ? (
-            <p className={`text-sm py-4 text-center ${isDark ? 'text-slate-500' : 'text-gray-500'}`}>
+            <p className="text-sm py-4 text-center" style={{ color: 'var(--text-quaternary)' }}>
               ยังไม่มีข้อมูลช่องทางติดต่อ คลิก "เพิ่มช่องทาง" เพื่อบันทึก
             </p>
           ) : (
@@ -439,10 +437,10 @@ const AddPersonForm = ({ onClose, onSuccess }) => {
               {contactFields.map((field, index) => (
                 <div 
                   key={field.id}
-                  className={`p-4 rounded-lg ${isDark ? 'bg-slate-800' : 'bg-white border border-gray-200'}`}
+                  className="p-4 rounded-xl" style={{ background: 'var(--glass-thin)', border: '1px solid var(--border-subtle)' }}
                 >
                   <div className="flex items-center justify-between mb-3">
-                    <span className={`text-sm font-medium ${isDark ? 'text-slate-300' : 'text-gray-700'}`}>
+                    <span className="text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>
                       ช่องทางที่ #{index + 1}
                     </span>
                     <button
@@ -519,11 +517,10 @@ const AddPersonForm = ({ onClose, onSuccess }) => {
 
         {/* Submit Status */}
         {submitStatus && (
-          <div className={`flex items-center gap-2 p-3 rounded-lg ${
-            submitStatus === 'success' 
-              ? isDark ? 'bg-green-900/30 text-green-400' : 'bg-green-50 text-green-600'
-              : isDark ? 'bg-red-900/30 text-red-400' : 'bg-red-50 text-red-600'
-          }`}>
+          <div className="flex items-center gap-2 p-3 rounded-xl"
+            style={submitStatus === 'success' 
+              ? { background: 'rgba(48, 209, 88, 0.1)', color: 'var(--accent-green)' }
+              : { background: 'rgba(255, 69, 58, 0.1)', color: 'var(--accent-red)' }}>
             {submitStatus === 'success' ? (
               <>
                 <CheckCircle className="w-5 h-5" />
@@ -539,15 +536,13 @@ const AddPersonForm = ({ onClose, onSuccess }) => {
         )}
 
         {/* Actions */}
-        <div className="flex justify-end gap-3 pt-4 border-t border-slate-700">
+        <div className="flex justify-end gap-3 pt-4" style={{ borderTop: '1px solid var(--border-subtle)' }}>
           {onClose && (
             <button
               type="button"
               onClick={onClose}
-              className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors
-                ${isDark 
-                  ? 'bg-slate-700 hover:bg-slate-600 text-slate-200' 
-                  : 'bg-gray-100 hover:bg-gray-200 text-gray-700'}`}
+              className="px-4 py-2 rounded-xl font-medium text-sm transition-all duration-300"
+              style={{ background: 'var(--glass-thin)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)' }}
             >
               ยกเลิก
             </button>
@@ -555,11 +550,8 @@ const AddPersonForm = ({ onClose, onSuccess }) => {
           <button
             type="submit"
             disabled={isSubmitting || isDuplicateId}
-            className={`flex items-center gap-2 px-6 py-2 rounded-lg font-medium text-sm transition-colors
-              ${isDark 
-                ? 'bg-cyan-600 hover:bg-cyan-500 text-white disabled:bg-slate-600' 
-                : 'bg-blue-600 hover:bg-blue-700 text-white disabled:bg-gray-400'}
-              disabled:cursor-not-allowed`}
+            className="flex items-center gap-2 px-6 py-2 rounded-xl font-semibold text-sm transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed"
+            style={{ background: 'var(--accent-blue)', color: 'white', boxShadow: '0 4px 12px rgba(10,132,255,0.3)' }}
           >
             <Save className="w-4 h-4" />
             {isSubmitting ? 'กำลังบันทึก...' : 'บันทึกข้อมูล'}

@@ -1,42 +1,175 @@
-#root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+/* iOS 26 — Spatial Design System — App-level overrides */
+/* All core styles defined in index.css */
+
+/* ── Province Layer Tooltip — glass aesthetic ── */
+.province-tooltip-container {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+.province-tooltip-container::before {
+  display: none !important; /* Remove default Leaflet tooltip arrow */
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+/* Province polygon CSS transitions for smooth hover */
+.leaflet-interactive.province-selected {
+  filter: drop-shadow(0 0 6px rgba(6, 182, 212, 0.4));
 }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
+/* ── Police Station Layer — tooltip + dot glow ── */
+.police-tooltip-container {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+.police-tooltip-container::before {
+  display: none !important;
+}
+.police-dot-active {
+  filter: drop-shadow(0 0 8px rgba(6, 182, 212, 0.6));
+}
+.police-dot {
+  filter: drop-shadow(0 0 4px rgba(59, 130, 246, 0.4));
+}
+
+/* ═══════════════════════════════════════════════════
+   NETWORK GRAPH — Toolbar, Panels, SVG Overlay
+   ═══════════════════════════════════════════════════ */
+
+/* ── Top Toolbar — floats over the graph/map ── */
+.network-toolbar {
+  position: absolute;
+  top: calc(var(--panel-inset, 16px) + var(--header-height, 52px) + var(--panel-gap, 12px) + 8px);
+  left: calc(var(--panel-inset, 16px) + var(--sidebar-width-expanded, 300px) + var(--panel-gap, 12px) + 12px);
+  right: calc(var(--panel-inset, 16px) + 12px);
+  z-index: 800;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 16px;
+  background: var(--glass-header-bg);
+  backdrop-filter: blur(60px) saturate(200%);
+  -webkit-backdrop-filter: blur(60px) saturate(200%);
+  border: 1px solid var(--glass-header-border);
+}
+.dark .network-toolbar { box-shadow: var(--levitation-shadow-dark); }
+.light .network-toolbar { box-shadow: var(--levitation-shadow-light); }
+
+:has(.sidebar-collapsed) .network-toolbar {
+  left: calc(var(--panel-inset, 16px) + var(--sidebar-width-collapsed, 64px) + var(--panel-gap, 12px) + 12px);
+}
+
+/* ── Filter Panel ── */
+.network-filter-panel {
+  position: absolute;
+  top: calc(var(--panel-inset, 16px) + var(--header-height, 52px) + var(--panel-gap, 12px) + 56px);
+  left: calc(var(--panel-inset, 16px) + var(--sidebar-width-expanded, 300px) + var(--panel-gap, 12px) + 12px);
+  right: calc(var(--panel-inset, 16px) + 12px);
+  z-index: 799;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: var(--glass-surface-bg);
+  backdrop-filter: blur(60px) saturate(200%);
+  -webkit-backdrop-filter: blur(60px) saturate(200%);
+  border: 1px solid var(--glass-surface-border);
+}
+.dark .network-filter-panel { box-shadow: var(--levitation-shadow-dark); }
+.light .network-filter-panel { box-shadow: var(--levitation-shadow-light); }
+
+:has(.sidebar-collapsed) .network-filter-panel {
+  left: calc(var(--panel-inset, 16px) + var(--sidebar-width-collapsed, 64px) + var(--panel-gap, 12px) + 12px);
+}
+
+/* ── Metrics / Analytics Panel — bottom left ── */
+.network-metrics-panel {
+  position: absolute;
+  bottom: calc(var(--panel-inset, 16px) + var(--footer-height, 36px) + var(--panel-gap, 12px) + 8px);
+  left: calc(var(--panel-inset, 16px) + var(--sidebar-width-expanded, 300px) + var(--panel-gap, 12px) + 12px);
+  width: 260px;
+  z-index: 800;
+  padding: 14px;
+  border-radius: 18px;
+  background: var(--glass-surface-bg);
+  backdrop-filter: blur(72px) saturate(210%);
+  -webkit-backdrop-filter: blur(72px) saturate(210%);
+  border: 1px solid var(--glass-surface-border);
+  max-height: 60vh;
+  overflow-y: auto;
+}
+.dark .network-metrics-panel { box-shadow: var(--levitation-shadow-dark); }
+.light .network-metrics-panel { box-shadow: var(--levitation-shadow-light); }
+
+:has(.sidebar-collapsed) .network-metrics-panel {
+  left: calc(var(--panel-inset, 16px) + var(--sidebar-width-collapsed, 64px) + var(--panel-gap, 12px) + 12px);
+}
+
+/* ── Legend — bottom left, above metrics or standalone ── */
+.network-legend {
+  position: absolute;
+  bottom: calc(var(--panel-inset, 16px) + var(--footer-height, 36px) + var(--panel-gap, 12px) + 8px);
+  right: calc(var(--panel-inset, 16px) + 12px);
+  width: 170px;
+  z-index: 800;
+  padding: 12px;
+  border-radius: 16px;
+  background: var(--glass-surface-bg);
+  backdrop-filter: blur(72px) saturate(210%);
+  -webkit-backdrop-filter: blur(72px) saturate(210%);
+  border: 1px solid var(--glass-surface-border);
+}
+.dark .network-legend { box-shadow: var(--levitation-shadow-dark); }
+.light .network-legend { box-shadow: var(--levitation-shadow-light); }
+
+/* ── Detail Panel — right side ── */
+.network-detail-panel {
+  position: absolute;
+  top: calc(var(--panel-inset, 16px) + var(--header-height, 52px) + var(--panel-gap, 12px) + 8px);
+  right: calc(var(--panel-inset, 16px) + 12px);
+  width: 300px;
+  max-height: calc(100vh - var(--panel-inset, 16px) * 2 - var(--header-height, 52px) - var(--footer-height, 36px) - var(--panel-gap, 12px) * 2 - 24px);
+  overflow-y: auto;
+  z-index: 801;
+  padding: 16px;
+  border-radius: 20px;
+  background: var(--glass-surface-bg);
+  backdrop-filter: blur(72px) saturate(210%);
+  -webkit-backdrop-filter: blur(72px) saturate(210%);
+  border: 1px solid var(--glass-surface-border);
+}
+.dark .network-detail-panel { box-shadow: var(--levitation-shadow-dark); }
+.light .network-detail-panel { box-shadow: var(--levitation-shadow-light); }
+
+/* Connection item hover */
+.network-connection-item {
+  transition: background 0.2s var(--ease-fluid), transform 0.2s var(--ease-fluid);
+}
+.network-connection-item:hover {
+  background: var(--glass-thin) !important;
+  transform: translateX(2px);
+}
+
+/* ── Responsive — tighten on small screens ── */
+@media (max-width: 768px) {
+  .network-toolbar {
+    left: calc(var(--panel-inset, 8px) + var(--sidebar-width-collapsed, 56px) + var(--panel-gap, 8px) + 8px);
+    right: calc(var(--panel-inset, 8px) + 8px);
+    gap: 4px;
+    padding: 4px 8px;
   }
-  to {
-    transform: rotate(360deg);
+  .network-filter-panel {
+    left: calc(var(--panel-inset, 8px) + var(--sidebar-width-collapsed, 56px) + var(--panel-gap, 8px) + 8px);
+    right: calc(var(--panel-inset, 8px) + 8px);
   }
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
+  .network-metrics-panel {
+    left: calc(var(--panel-inset, 8px) + var(--sidebar-width-collapsed, 56px) + var(--panel-gap, 8px) + 8px);
+    width: 220px;
   }
-}
-
-.card {
-  padding: 2em;
-}
-
-.read-the-docs {
-  color: #888;
+  .network-detail-panel {
+    width: 260px;
+    right: calc(var(--panel-inset, 8px) + 8px);
+  }
+  .network-legend { display: none; }
 }
