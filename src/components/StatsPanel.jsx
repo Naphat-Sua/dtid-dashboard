@@ -14,21 +14,32 @@ import {
 } from 'lucide-react';
 import { useDataStore } from '../store/useStore';
 import { useShallow } from 'zustand/react/shallow';
+import { filterCasesByProvince, getPersonIdsForCases } from '../utils/provinceFilter';
 
 const StatsPanel = () => {
-  const { persons, cases, drugSeizures } = useDataStore(
-    useShallow(s => ({ persons: s.persons, cases: s.cases, drugSeizures: s.drugSeizures }))
+  const { persons, cases, drugSeizures, locations, personCases, selectedProvince } = useDataStore(
+    useShallow(s => ({
+      persons: s.persons, cases: s.cases, drugSeizures: s.drugSeizures,
+      locations: s.locations, personCases: s.personCases, selectedProvince: s.selectedProvince,
+    }))
   );
 
-  // Calculate stats from store data
+  // Calculate stats from store data — scoped to the selected province (if any)
   const stats = useMemo(() => {
-    const totalCases = cases.length;
-    const activeCases = cases.filter(c => c.Status === 'Under Investigation').length;
-    const totalArrests = persons.filter(p => p.Status === 'Arrested').length;
-    const totalSuspects = persons.filter(p => p.Status === 'Active' || p.Status === 'Under Surveillance').length;
-    
+    const scopedCases = filterCasesByProvince(cases, locations, selectedProvince);
+    const scopedCaseIds = new Set(scopedCases.map(c => c.CaseID));
+    const scopedPersonIds = selectedProvince ? getPersonIdsForCases(personCases, scopedCaseIds) : null;
+    const scopedPersons = scopedPersonIds ? persons.filter(p => scopedPersonIds.has(p.PersonID)) : persons;
+    const scopedSeizures = selectedProvince ? drugSeizures.filter(s => scopedCaseIds.has(s.CaseID)) : drugSeizures;
+
+    const totalCases = scopedCases.length;
+    const activeCases = scopedCases.filter(c => c.Status === 'Under Investigation').length;
+    const totalArrests = scopedPersons.filter(p => p.Status === 'Arrested').length;
+    const totalSuspects = scopedPersons.filter(p => p.Status === 'Active' || p.Status === 'Under Surveillance').length;
+    const totalSeizures = scopedSeizures.length;
+
     // Drug seizure stats
-    const drugStats = drugSeizures.reduce((acc, s) => {
+    const drugStats = scopedSeizures.reduce((acc, s) => {
       const existing = acc.find(d => d.type === s.DrugType);
       if (existing) {
         existing.totalQuantity += s.Quantity;
@@ -38,15 +49,15 @@ const StatsPanel = () => {
       return acc;
     }, []).sort((a, b) => b.totalQuantity - a.totalQuantity);
 
-    return { totalCases, activeCases, totalArrests, totalSuspects, drugStats };
-  }, [persons, cases, drugSeizures]);
+    return { totalCases, activeCases, totalArrests, totalSuspects, totalSeizures, drugStats };
+  }, [persons, cases, drugSeizures, locations, personCases, selectedProvince]);
 
-  // Get recent cases (last 3)
-  const recentCases = useMemo(() => 
-    [...cases]
+  // Get recent cases (last 3) — also scoped to the selected province
+  const recentCases = useMemo(() =>
+    [...filterCasesByProvince(cases, locations, selectedProvince)]
       .sort((a, b) => new Date(b.ArrestDate) - new Date(a.ArrestDate))
       .slice(0, 3),
-    [cases]
+    [cases, locations, selectedProvince]
   );
 
   // Format large numbers
@@ -70,7 +81,7 @@ const StatsPanel = () => {
     { icon: Briefcase, label: 'Active Cases', value: stats.activeCases, sub: `of ${stats.totalCases} total`, accent: 'var(--accent-blue)', glow: 'var(--glow-blue)' },
     { icon: Shield, label: 'Arrests', value: stats.totalArrests, sub: 'individuals', accent: 'var(--accent-red)', glow: 'var(--glow-red)' },
     { icon: Target, label: 'Active Targets', value: stats.totalSuspects, sub: 'under surveillance', accent: 'var(--accent-orange)', glow: 'rgba(255,159,10,0.2)' },
-    { icon: Scale, label: 'Seizures', value: drugSeizures.length, sub: 'drug batches', accent: 'var(--accent-purple)', glow: 'var(--glow-purple)' },
+    { icon: Scale, label: 'Seizures', value: stats.totalSeizures, sub: 'drug batches', accent: 'var(--accent-purple)', glow: 'var(--glow-purple)' },
   ];
 
   return (
@@ -142,7 +153,7 @@ const StatsPanel = () => {
           Recent Activity
         </h3>
         <div className="space-y-3">
-          {recentCases.map((c, idx) => {
+          {recentCases.map((c) => {
             const statusStyle = c.Status === 'Under Investigation'
               ? { background: 'rgba(255, 159, 10, 0.1)', color: 'var(--accent-orange)', border: '1px solid rgba(255, 159, 10, 0.15)' }
               : c.Status === 'Adjudicated'

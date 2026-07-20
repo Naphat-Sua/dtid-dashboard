@@ -3,6 +3,7 @@ import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { useDataStore, useThemeStore } from '../store/useStore';
 import { useShallow } from 'zustand/react/shallow';
+import { RISK_COLORS } from '../utils/riskLevels';
 import {
   User, Shield, Users, X, Briefcase, Calendar, MapPin,
   Link2, Search, Filter, GitBranch, ChevronDown, ChevronRight,
@@ -53,13 +54,6 @@ const STRENGTH_CONFIG = {
   'Strong': { width: 4, opacity: 0.9, label: 'Strong', glow: 8 },
   'Medium': { width: 2.5, opacity: 0.7, label: 'Medium', glow: 4 },
   'Weak': { width: 1.5, opacity: 0.45, label: 'Weak', glow: 0 },
-};
-
-const RISK_COLORS = {
-  'Critical': { bg: 'var(--accent-purple)', raw: '#BF5AF2', ring: 'rgba(191,90,242,0.3)' },
-  'High': { bg: 'var(--accent-red)', raw: '#FF453A', ring: 'rgba(255,69,58,0.3)' },
-  'Medium': { bg: 'var(--accent-orange)', raw: '#FF9F0A', ring: 'rgba(255,159,10,0.3)' },
-  'Low': { bg: 'var(--accent-green)', raw: '#30D158', ring: 'rgba(48,209,88,0.3)' },
 };
 
 const STATUS_BADGE = {
@@ -341,6 +335,7 @@ const SVGConnectionOverlay = ({ links, personPositions, highlightPersonId, selec
 };
 
 // -- Stat chip --
+// eslint-disable-next-line no-unused-vars -- Icon is used as a JSX element below
 const StatChip = ({ icon: Icon, label, value, accent }) => (
   <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl" style={{ background: 'var(--glass-thin)' }}>
     <Icon className="w-3.5 h-3.5" style={{ color: accent || 'var(--accent-blue)' }} />

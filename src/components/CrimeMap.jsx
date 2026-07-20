@@ -23,6 +23,7 @@ import PoliceStationLayer from './PoliceStationLayer';
 import { loadAllLayers } from '../services/gisService';
 import { getDemoGISLayers } from '../data/demoGISData';
 import AnalysisControls from './AnalysisControls';
+import { filterCasesByProvince, locationMatchesProvince } from '../utils/provinceFilter';
 
 // ── Zustand shallow selectors — avoids re-render on unrelated state changes ──
 const selectMapData = (s) => ({
@@ -371,7 +372,12 @@ const CrimeMap = ({ flyToLocation, showHeatmap = true, onMarkerClick }) => {
         setGisLayersLoading(true);
         try {
           const layers = await loadAllLayers();
-          if (layers.points || layers.lines || layers.polygons) {
+          // Only use the fetched layers if they actually contain features —
+          // otherwise (missing files, or an SPA host returning index.html for
+          // /geojson) fall back to the bundled demo data.
+          const featureCount = ['points', 'lines', 'polygons'].reduce((sum, kind) =>
+            sum + Object.values(layers?.[kind] || {}).reduce((s, fc) => s + (fc?.features?.length || 0), 0), 0);
+          if (featureCount > 0) {
             setGisLayers(layers);
             return;
           }
@@ -420,8 +426,12 @@ const CrimeMap = ({ flyToLocation, showHeatmap = true, onMarkerClick }) => {
   const handleZoomChange = useCallback((z) => setMapZoom(z), []);
 
   // ── Compute derived data with stable deps ──
+  // Province filter scopes the whole map experience: filtering cases here
+  // cascades to markers, heatmap, KDE and the Gi*/Moran's I/ANN analysis,
+  // since they all derive from caseLocations.
   const caseLocations = useMemo(() => {
-    return cases.map(c => {
+    const scopedCases = filterCasesByProvince(cases, locations, selectedProvince);
+    return scopedCases.map(c => {
       const location = locations.find(l => l.LocationID === c.LocationID);
       const seizures = drugSeizures.filter(s => s.CaseID === c.CaseID);
       const involvedPersonIds = personCases.filter(pc => pc.CaseID === c.CaseID);
@@ -431,7 +441,7 @@ const CrimeMap = ({ flyToLocation, showHeatmap = true, onMarkerClick }) => {
       }));
       return { ...location, case: c, seizures, involvedPersons };
     });
-  }, [cases, locations, drugSeizures, personCases, persons]);
+  }, [cases, locations, drugSeizures, personCases, persons, selectedProvince]);
 
   // Prepare aggregated analysis points
   const analysisPoints = useMemo(() => {
@@ -510,13 +520,16 @@ const CrimeMap = ({ flyToLocation, showHeatmap = true, onMarkerClick }) => {
         locMap.get(loc.LocationID).cases.push(loc.case);
       }
     });
-    locations.forEach(loc => {
-      if (!locMap.has(loc.LocationID)) {
-        locMap.set(loc.LocationID, { ...loc, cases: [], persons: [] });
-      }
-    });
+    // Also show caseless locations, but respect the province filter.
+    locations
+      .filter(loc => locationMatchesProvince(loc, selectedProvince))
+      .forEach(loc => {
+        if (!locMap.has(loc.LocationID)) {
+          locMap.set(loc.LocationID, { ...loc, cases: [], persons: [] });
+        }
+      });
     return Array.from(locMap.values());
-  }, [caseLocations, locations]);
+  }, [caseLocations, locations, selectedProvince]);
 
   // Theme
   const { theme } = useThemeStore();
@@ -759,7 +772,7 @@ const CrimeMap = ({ flyToLocation, showHeatmap = true, onMarkerClick }) => {
               Province Filter:
             </span>
             <span className="text-sm font-semibold" style={{ color: 'var(--accent-cyan)' }}>
-              {selectedProvince}
+              {selectedProvince.th}{selectedProvince.en ? ` (${selectedProvince.en})` : ''}
             </span>
           </div>
           <button

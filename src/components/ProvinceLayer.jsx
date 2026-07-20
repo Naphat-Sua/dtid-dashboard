@@ -1,5 +1,5 @@
-import React, { useCallback, useMemo, useRef, useEffect } from 'react';
-import { GeoJSON, useMap } from 'react-leaflet';
+import React, { useCallback, useMemo, useRef } from 'react';
+import { GeoJSON } from 'react-leaflet';
 import L from 'leaflet';
 import { useThemeStore } from '../store/useStore';
 
@@ -57,7 +57,7 @@ const ProvinceLayer = ({
   // ── Base style for each feature ──
   const style = useCallback((feature) => {
     const name = feature?.properties?.ADM1_EN || '';
-    const isSelected = selectedProvince && name === selectedProvince;
+    const isSelected = selectedProvince && name === selectedProvince.en;
 
     if (isSelected) {
       return {
@@ -116,8 +116,8 @@ const ProvinceLayer = ({
     layer.on({
       mouseover: (e) => {
         const target = e.target;
-        const isSelected = selectedProvince && nameEN === selectedProvince;
-        
+        const isSelected = selectedProvince && nameEN === selectedProvince.en;
+
         if (!isSelected) {
           target.setStyle({
             fillOpacity: palette.hoverFillOpacity,
@@ -141,7 +141,7 @@ const ProvinceLayer = ({
 
       mouseout: (e) => {
         const target = e.target;
-        const isSelected = selectedProvince && nameEN === selectedProvince;
+        const isSelected = selectedProvince && nameEN === selectedProvince.en;
 
         if (!isSelected) {
           target.setStyle({
@@ -161,11 +161,11 @@ const ProvinceLayer = ({
 
       click: (e) => {
         L.DomEvent.stopPropagation(e);
-        
+
         if (onProvinceSelect) {
-          // Toggle: if already selected, deselect
-          const newSelection = selectedProvince === nameEN ? null : nameEN;
-          onProvinceSelect(newSelection);
+          // Toggle: deselect if already selected, else select { en, th }.
+          const isSame = selectedProvince && selectedProvince.en === nameEN;
+          onProvinceSelect(isSame ? null : { en: nameEN, th: nameTH });
         }
       },
     });
@@ -173,7 +173,7 @@ const ProvinceLayer = ({
 
   // ── Stable key forces GeoJSON re-render when selection/theme changes ──
   const geoJsonKey = useMemo(
-    () => `provinces-${theme}-${selectedProvince || 'none'}`,
+    () => `provinces-${theme}-${selectedProvince?.en || 'none'}`,
     [theme, selectedProvince]
   );
 
