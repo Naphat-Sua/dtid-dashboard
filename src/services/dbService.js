@@ -6,32 +6,94 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
 class DatabaseService {
   constructor() {
     this.baseUrl = API_BASE_URL;
+    this.accessToken = null;   // in-memory (never persisted)
+    this.refreshToken = null;  // mirrored from the persisted auth store
+    this.onTokens = null;      // callback so the store can persist rotated tokens
+    this._lastUser = null;
   }
 
-  // Generic fetch wrapper with error handling
-  async request(endpoint, options = {}) {
+  // ── Token management ──────────────────────────────────────
+  setTokens({ accessToken, refreshToken }) {
+    if (accessToken !== undefined) this.accessToken = accessToken;
+    if (refreshToken !== undefined) this.refreshToken = refreshToken;
+    if (typeof this.onTokens === 'function') {
+      this.onTokens({ accessToken: this.accessToken, refreshToken: this.refreshToken });
+    }
+  }
+  setRefreshToken(rt) { this.refreshToken = rt || null; }
+  clearAuth() {
+    this.accessToken = null;
+    this.refreshToken = null;
+    if (typeof this.onTokens === 'function') this.onTokens({ accessToken: null, refreshToken: null });
+  }
+
+  // Generic fetch wrapper — attaches the Bearer token and transparently
+  // refreshes it once on a 401 (the documented Auto Refresh Token behavior).
+  async request(endpoint, options = {}, _retried = false) {
     const url = `${this.baseUrl}${endpoint}`;
-    const config = {
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-      ...options,
-    };
+    const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
+    if (this.accessToken) headers.Authorization = `Bearer ${this.accessToken}`;
 
     try {
-      const response = await fetch(url, config);
-      
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({ message: 'Network error' }));
-        throw new Error(error.message || `HTTP ${response.status}`);
+      const response = await fetch(url, { ...options, headers });
+
+      // Access token expired → refresh once, then retry the original request.
+      if (response.status === 401 && this.refreshToken && !_retried && !endpoint.startsWith('/auth/')) {
+        const ok = await this._doRefresh().catch(() => false);
+        if (ok) return this.request(endpoint, options, true);
       }
 
-      return await response.json();
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ message: 'Network error' }));
+        const err = new Error(error.message || `HTTP ${response.status}`);
+        err.status = response.status;
+        throw err;
+      }
+
+      const text = await response.text();
+      return text ? JSON.parse(text) : {};
     } catch (error) {
       console.error(`API Error [${endpoint}]:`, error);
       throw error;
     }
+  }
+
+  // ── Auth operations ───────────────────────────────────────
+  async login(username, password) {
+    const data = await this.request('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ username, password }),
+    });
+    this.setTokens({ accessToken: data.accessToken, refreshToken: data.refreshToken });
+    return data; // { user, accessToken, refreshToken }
+  }
+
+  async _doRefresh() {
+    if (!this.refreshToken) return false;
+    const res = await fetch(`${this.baseUrl}/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken: this.refreshToken }),
+    });
+    if (!res.ok) { this.clearAuth(); return false; }
+    const data = await res.json();
+    this.setTokens({ accessToken: data.accessToken, refreshToken: data.refreshToken });
+    this._lastUser = data.user;
+    return true;
+  }
+
+  async refresh() {
+    if (!(await this._doRefresh())) throw new Error('Session expired');
+    return { user: this._lastUser };
+  }
+
+  async logout() {
+    try { await this.request('/auth/logout', { method: 'POST' }); } catch { /* best effort */ }
+    this.clearAuth();
+  }
+
+  async me() {
+    return this.request('/auth/me');
   }
 
   // ============================================================

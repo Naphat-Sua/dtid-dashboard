@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useMemo, useState, useCallback } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap, Circle, CircleMarker } from 'react-leaflet';
-import L from 'leaflet';
+import L from '../leafletSetup'; // exposes window.L before the leaflet.heat UMD plugin loads
 import 'leaflet.heat';
 import { 
   MapPin, AlertTriangle, Home, Package, User, Calendar, Scale,

@@ -20,14 +20,15 @@ import {
 import StatsPanel from './StatsPanel';
 import SuspectList from './SuspectList';
 
-const Sidebar = ({ 
-  activeView, 
-  onViewChange, 
-  onFlyTo, 
+const Sidebar = ({
+  activeView,
+  onViewChange,
+  onFlyTo,
   onPersonSelect,
   selectedPersonId,
   showHeatmap,
-  onToggleHeatmap
+  onToggleHeatmap,
+  canAdmin = false
 }) => {
   const [collapsed, setCollapsed] = useState(false);
   const [activeTab, setActiveTab] = useState('stats');
@@ -104,8 +105,8 @@ const Sidebar = ({
         </div>
       </div>
 
-      {/* Admin Button */}
-      {!collapsed && (
+      {/* Admin Button — Admin role only (RBAC) */}
+      {!collapsed && canAdmin && (
         <div className="px-2.5 py-2" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
           <button
             onClick={() => onViewChange('admin')}
