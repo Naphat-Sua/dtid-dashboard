@@ -203,7 +203,7 @@ const AnalysisControls = ({
     <>
       {/* Main controls panel */}
       <div
-        className="absolute top-20 left-4 z-[800] rounded-2xl glass-floating overflow-hidden transition-all duration-300"
+        className="absolute top-20 analysis-panel-left z-[800] rounded-2xl glass-floating overflow-hidden transition-all duration-300"
         style={{ width: '300px' }}
       >
         {/* Header */}
@@ -598,7 +598,7 @@ const AnalysisControls = ({
       {/* ── Methodology Popover ── */}
       {activeMethodology && (
         <div
-          className="absolute top-20 left-[320px] z-[810] rounded-2xl glass-floating overflow-hidden"
+          className="absolute top-20 analysis-popover-left z-[810] rounded-2xl glass-floating overflow-hidden"
           style={{ width: '320px' }}
         >
           <div className="flex items-center justify-between p-3"

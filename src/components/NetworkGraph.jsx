@@ -155,7 +155,7 @@ const createPersonIcon = (person, subordinateCount, isSelected, riskLevel) => {
 const FitBounds = ({ positions }) => {
   const map = useMap();
   useEffect(() => {
-    if (positions.length) map.fitBounds(L.latLngBounds(positions), { padding: [60, 60], maxZoom: 10 });
+    if (positions.length) map.fitBounds(L.latLngBounds(positions), { padding: [60, 60], maxZoom: 14 });
   }, [map, positions]);
   return null;
 };
