@@ -9,10 +9,9 @@ import {
 import { useDataStore, useThemeStore } from '../store/useStore';
 import { useShallow } from 'zustand/react/shallow';
 import { 
-  performSpatialAnalysis, 
-  getHotspotColor, 
+  performSpatialAnalysis,
+  getHotspotColor,
   getClassificationLabel,
-  performKDE,
   kdeToImageData,
   calculateOptimalBandwidth,
   calculateAdaptiveThreshold,
@@ -138,16 +137,6 @@ const HeatmapLayer = ({ points }) => {
   }, [map, points]);
 
   return null;
-};
-
-// Helper function for density colors with smooth interpolation
-const getDensityColor = (normalizedDensity) => {
-  if (normalizedDensity > 0.8) return '#7f1d1d';
-  if (normalizedDensity > 0.6) return '#991b1b';
-  if (normalizedDensity > 0.45) return '#dc2626';
-  if (normalizedDensity > 0.3) return '#ef4444';
-  if (normalizedDensity > 0.2) return '#f97316';
-  return '#fbbf24';
 };
 
 // ── True KDE Raster Layer — canvas-based density surface via L.ImageOverlay ──
@@ -301,12 +290,6 @@ const HotspotLayer = ({ giResults, onMarkerClick }) => {
   );
 };
 
-// Analysis Statistics Panel — now a compact summary since AnalysisControls handles detail
-const AnalysisStatsPanel = ({ giResults, kdeResult }) => {
-  // This component is now superseded by AnalysisControls; kept for backward compat
-  return null;
-};
-
 // Fly to location component
 const FlyToLocation = ({ center, zoom }) => {
   const map = useMap();
@@ -357,7 +340,6 @@ const CrimeMap = ({ flyToLocation, showHeatmap = true, onMarkerClick }) => {
   
   // Visualization mode state
   const [vizMode, setVizMode] = useState('heatmap'); // 'heatmap' | 'kde' | 'hotspot' | 'all'
-  const [showStats, setShowStats] = useState(true);
   const [mapZoom, setMapZoom] = useState(10);
   
   // ── Analysis parameters — user-controllable via AnalysisControls ──
@@ -365,7 +347,7 @@ const CrimeMap = ({ flyToLocation, showHeatmap = true, onMarkerClick }) => {
   
   // GIS layers state
   const [gisLayers, setGisLayers] = useState(null);
-  const [gisLayersLoading, setGisLayersLoading] = useState(false);
+  const [, setGisLayersLoading] = useState(false);
   // Base layer — mutually exclusive: 'provinces' | 'policeStations' | null
   const [activeBaseLayer, setActiveBaseLayer] = useState('provinces');
   const [visibleGISLayers, setVisibleGISLayers] = useState({
@@ -393,7 +375,7 @@ const CrimeMap = ({ flyToLocation, showHeatmap = true, onMarkerClick }) => {
             setGisLayers(layers);
             return;
           }
-        } catch (e) {
+        } catch {
           console.log('GeoJSON files not available, using demo data');
         }
         const demoLayers = getDemoGISLayers();
@@ -749,6 +731,8 @@ const CrimeMap = ({ flyToLocation, showHeatmap = true, onMarkerClick }) => {
           autoValues={autoValues}
           giSummary={spatialAnalysis?.giStar?.summary}
           kdeResult={spatialAnalysis?.kde}
+          moransI={spatialAnalysis?.moransI}
+          ann={spatialAnalysis?.ann}
           vizMode={vizMode}
         />
       )}
