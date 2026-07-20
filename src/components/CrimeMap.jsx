@@ -361,9 +361,9 @@ const CrimeMap = ({ flyToLocation, showHeatmap = true, onMarkerClick }) => {
     forests: false
   });
   
-  // Center on Chiang Rai
-  const defaultCenter = [20.15, 99.95];
-  const defaultZoom = 10;
+  // Center on อ.สามพราน จ.นครปฐม (study area)
+  const defaultCenter = [13.72, 100.22];
+  const defaultZoom = 12;
 
   // Load GIS layers on mount
   useEffect(() => {

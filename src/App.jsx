@@ -149,7 +149,7 @@ function AppContent() {
         <div className="flex items-center gap-3">
           <div className="hidden md:flex items-center gap-1.5 text-[11px] font-medium" style={{ color: 'var(--text-tertiary)' }}>
             <MapPin className="w-3 h-3" />
-            <span>Chiang Rai</span>
+            <span>สามพราน · นครปฐม</span>
           </div>
 
           <div className="hidden lg:flex items-center gap-1.5 text-[11px] font-mono" style={{ color: 'var(--text-tertiary)' }}>
