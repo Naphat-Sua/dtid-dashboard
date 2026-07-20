@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useMemo, useState, useCallback } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap, Circle, CircleMarker } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap, Circle, CircleMarker, Polyline } from 'react-leaflet';
 import L from '../leafletSetup'; // exposes window.L before the leaflet.heat UMD plugin loads
 import 'leaflet.heat';
 import { 
@@ -24,6 +24,7 @@ import { loadAllLayers } from '../services/gisService';
 import { getDemoGISLayers } from '../data/demoGISData';
 import AnalysisControls from './AnalysisControls';
 import { filterCasesByProvince, locationMatchesProvince } from '../utils/provinceFilter';
+import { analyzeCorridors } from '../utils/roadNetwork';
 
 // ── Zustand shallow selectors — avoids re-render on unrelated state changes ──
 const selectMapData = (s) => ({
@@ -341,6 +342,7 @@ const CrimeMap = ({ flyToLocation, showHeatmap = true, onMarkerClick }) => {
   
   // Visualization mode state
   const [vizMode, setVizMode] = useState('heatmap'); // 'heatmap' | 'kde' | 'hotspot' | 'all'
+  const [showCorridors, setShowCorridors] = useState(false); // road-network trafficking corridors
   const [mapZoom, setMapZoom] = useState(10);
   
   // ── Analysis parameters — user-controllable via AnalysisControls ──
@@ -531,6 +533,13 @@ const CrimeMap = ({ flyToLocation, showHeatmap = true, onMarkerClick }) => {
     return Array.from(locMap.values());
   }, [caseLocations, locations, selectedProvince]);
 
+  // Road-network trafficking corridors (computed only when the layer is on)
+  const corridorData = useMemo(() => {
+    if (!showCorridors) return { segments: [] };
+    const roads = gisLayers?.lines?.roads?.features || [];
+    return analyzeCorridors(roads, analysisPoints);
+  }, [showCorridors, gisLayers, analysisPoints]);
+
   // Theme
   const { theme } = useThemeStore();
   const tileConfig = theme === 'dark' ? MAP_TILES.dark : MAP_TILES.light;
@@ -569,6 +578,20 @@ const CrimeMap = ({ flyToLocation, showHeatmap = true, onMarkerClick }) => {
 
         {/* Zoom observer — feeds zoom level for adaptive resolution */}
         <ZoomObserver onZoomChange={handleZoomChange} />
+
+        {/* Road-network trafficking corridors — width/colour by usage weight */}
+        {showCorridors && corridorData.segments.map((seg, i) => (
+          <Polyline
+            key={`corridor-${i}`}
+            positions={[seg.from, seg.to]}
+            pathOptions={{
+              color: seg.weight > 0.66 ? '#ef4444' : seg.weight > 0.33 ? '#f97316' : '#fbbf24',
+              weight: 2 + seg.weight * 7,
+              opacity: 0.85,
+              lineCap: 'round',
+            }}
+          />
+        ))}
 
         {/* Visualization Layers based on mode */}
         {(vizMode === 'heatmap' || vizMode === 'all') && showHeatmap && (
@@ -733,6 +756,24 @@ const CrimeMap = ({ flyToLocation, showHeatmap = true, onMarkerClick }) => {
               {mode.label}
             </button>
           ))}
+        </div>
+
+        {/* Road-network corridor overlay toggle (independent of mode) */}
+        <div className="mt-2 pt-2" style={{ borderTop: '1px solid var(--border-subtle)' }}>
+          <button
+            onClick={() => setShowCorridors(v => !v)}
+            className="w-full flex items-center gap-2 px-3 py-1.5 rounded text-xs font-medium transition-colors"
+            style={showCorridors
+              ? { background: 'var(--accent-red)', color: '#fff', boxShadow: '0 0 12px rgba(255,69,58,0.35)' }
+              : { background: 'var(--glass-thin)', color: 'var(--text-secondary)' }}
+            title="วิเคราะห์เส้นทางลำเลียงบนโครงข่ายถนน (shortest paths ระหว่างจุดกิจกรรมสูง)"
+          >
+            <span>🛣️</span>
+            เส้นทางลำเลียง (Corridors)
+            {showCorridors && corridorData.segments.length > 0 && (
+              <span className="ml-auto text-[10px] font-mono opacity-90">{corridorData.segments.length}</span>
+            )}
+          </button>
         </div>
       </div>
 
