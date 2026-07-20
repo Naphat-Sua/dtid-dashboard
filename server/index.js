@@ -5,12 +5,16 @@
 // ============================================================
 
 import express from 'express';
-import cors from 'cors';
 import pg from 'pg';
 import multer from 'multer';
 import { Readable } from 'stream';
 import csvParser from 'csv-parser';
 import compression from 'compression';
+
+import { securityMiddleware } from './middleware/security.js';
+import { verifyJwt, requireRole } from './middleware/auth.js';
+import { createAuthRouter } from './routes/auth.js';
+import { makeAudit } from './lib/audit.js';
 
 const { Pool } = pg;
 
@@ -18,17 +22,23 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // ── Middleware ──────────────────────────────────────────────
-app.use(compression());  // gzip all responses (~70% size reduction)
-app.use(cors());
+// Defense-in-depth chain: Helmet → CORS → Rate limiter → JSON → HPP.
+const security = securityMiddleware();
+app.use(compression());        // gzip all responses (~70% size reduction)
+app.use(security.helmet);      // 1. security headers (CSP, HSTS, X-Frame-Options)
+app.use(security.cors);        // 2. CORS
+app.use(security.limiter);     // 3. rate limiting (sliding window)
 app.use(express.json({ limit: '10mb' }));
+app.use(security.hpp);         // 4. HTTP parameter pollution guard (after body parse)
 
-// ── Request timing header ──────────────────────────────────
-app.use((_req, res, next) => {
+// ── Request timing (slow-request logging) ──────────────────
+// Note: a response header cannot be set from the 'finish' event (headers are
+// already flushed), so we only log slow requests here.
+app.use((req, res, next) => {
   const start = Date.now();
   res.on('finish', () => {
     const ms = Date.now() - start;
-    res.setHeader('X-Response-Time', `${ms}ms`);
-    if (ms > 500) console.warn(`⚠️  Slow response: ${_req.method} ${_req.url} — ${ms}ms`);
+    if (ms > 500) console.warn(`⚠️  Slow response: ${req.method} ${req.url} — ${ms}ms`);
   });
   next();
 });
@@ -54,7 +64,7 @@ function invalidateCache(prefix) {
 // Multer — memory storage for CSV uploads
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
   fileFilter: (_req, file, cb) => {
     if (file.mimetype === 'text/csv' || file.originalname.endsWith('.csv')) {
       cb(null, true);
@@ -95,6 +105,46 @@ const rowToCamel = (row) => {
 };
 
 const rowsToCamel = (rows) => rows.map(rowToCamel);
+
+// ============================================================
+// AUTH, RBAC & AUDIT  (documented Defense-in-Depth security model)
+// ============================================================
+const writeAudit = makeAudit(pool);
+
+// Public auth endpoints (login/refresh); logout/me self-protect via verifyJwt.
+app.use('/api/auth', createAuthRouter(pool, writeAudit, security.authLimiter));
+
+// Minimum role required for a request: reads → Viewer, analytics → Analyst,
+// any mutation (POST/PUT/DELETE) or CSV import → Admin.
+function requiredRoleFor(req) {
+  if (req.method !== 'GET') return 'Admin';
+  if (req.path.startsWith('/analytics')) return 'Analyst';
+  return 'Viewer';
+}
+
+// RBAC gate — every /api route except the public health check requires a token.
+app.use('/api', (req, res, next) => {
+  if (req.path === '/health') return next();
+  verifyJwt(req, res, () => requireRole(requiredRoleFor(req))(req, res, next));
+});
+
+// Audit every successful mutation (CREATE / UPDATE / DELETE / IMPORT).
+app.use('/api', (req, res, next) => {
+  if (req.method === 'GET') return next();
+  res.on('finish', () => {
+    if (res.statusCode < 200 || res.statusCode >= 300 || !req.user) return;
+    const seg = req.path.split('/').filter(Boolean); // e.g. ['persons','5']
+    const entityType = seg[0] || 'unknown';
+    const entityId = seg.find((s) => /^\d+$/.test(s)) || null;
+    const action = req.path.startsWith('/upload') ? 'IMPORT'
+      : req.method === 'POST' ? 'CREATE'
+      : req.method === 'PUT' ? 'UPDATE'
+      : req.method === 'DELETE' ? 'DELETE'
+      : req.method;
+    writeAudit(req, { action, entityType, entityId, changes: { path: req.originalUrl, body: req.body } });
+  });
+  next();
+});
 
 // ============================================================
 // PERSON API
