@@ -5,7 +5,11 @@ import tailwindcss from '@tailwindcss/vite'
 // ── Vendor chunk mapping for code-splitting ──────────────────
 const VENDOR_CHUNKS = {
   'vendor-react': ['react', 'react-dom'],
-  'vendor-map': ['leaflet', 'react-leaflet', 'leaflet.heat'],
+  // NOTE: leaflet.heat is deliberately NOT chunked here. It is a UMD plugin
+  // that needs a global `L`; keeping it out of the eagerly-loadable vendor-map
+  // chunk lets it bundle with (lazy) CrimeMap, evaluating only after
+  // src/leafletSetup.js has set window.L at app entry.
+  'vendor-map': ['leaflet', 'react-leaflet'],
   'vendor-d3': ['d3'],  // matches d3, d3-array, d3-force, etc.
   'vendor-forms': ['react-hook-form', '@hookform/resolvers', 'zod'],
   'vendor-state': ['zustand'],

@@ -1,8 +1,10 @@
-import React, { useState, useCallback, Suspense, lazy } from 'react';
+import React, { useState, useCallback, useEffect, Suspense, lazy } from 'react';
 import Sidebar from './components/Sidebar';
 import ThemeProvider from './components/ThemeProvider';
 import ThemeToggle from './components/ThemeToggle';
-import { Shield, Clock, MapPin, Radio, AlertTriangle, Fingerprint, Upload } from 'lucide-react';
+import LoginPage from './components/LoginPage';
+import { useAuthStore } from './store/useStore';
+import { Shield, Clock, MapPin, Radio, AlertTriangle, Fingerprint, Upload, LogOut } from 'lucide-react';
 
 // ── Lazy-loaded heavy view components ──────────────────────
 // CrimeMap (814 lines + leaflet.heat + spatialAnalysis)
@@ -13,6 +15,9 @@ const CrimeMap = lazy(() => import('./components/CrimeMap'));
 const NetworkGraph = lazy(() => import('./components/NetworkGraph'));
 const AdminPage = lazy(() => import('./components/AdminPage'));
 const CsvUploader = lazy(() => import('./components/CsvUploader'));
+
+// Role badge accents for the header chip
+const ROLE_ACCENT = { Admin: 'var(--accent-purple)', Analyst: 'var(--accent-blue)', Viewer: 'var(--accent-green)' };
 
 // Lightweight loading spinner matching the glass design system
 const ViewLoader = () => (
@@ -65,6 +70,14 @@ function AppContent() {
   const [showHeatmap, setShowHeatmap] = useState(true);
   const [showCsvUploader, setShowCsvUploader] = useState(false);
 
+  // ── Auth / RBAC ──
+  const user = useAuthStore((s) => s.user);
+  const logout = useAuthStore((s) => s.logout);
+  const hasRole = useAuthStore((s) => s.hasRole);
+  const canAdmin = hasRole('Admin');
+  // Guard: a non-Admin must never land on the data-management view.
+  const effectiveView = activeView === 'admin' && !canAdmin ? 'map' : activeView;
+
   const handleFlyTo = useCallback((location) => {
     setFlyToLocation(location);
     setTimeout(() => setFlyToLocation(null), 2000);
@@ -83,7 +96,7 @@ function AppContent() {
     network: { title: 'Criminal Network Analysis', subtitle: 'Link Analysis', icon: Fingerprint },
     admin: { title: 'Data Management Center', subtitle: 'Administration', icon: Shield },
   };
-  const currentView = viewInfo[activeView];
+  const currentView = viewInfo[effectiveView];
 
   return (
     <div className="relative h-screen w-screen overflow-hidden" style={{ color: 'var(--text-primary)' }}>
@@ -92,20 +105,20 @@ function AppContent() {
       <div className="absolute inset-0 z-0">
         <ErrorBoundary>
           <Suspense fallback={<ViewLoader />}>
-            {activeView === 'map' && (
+            {effectiveView === 'map' && (
               <CrimeMap
                 flyToLocation={flyToLocation}
                 showHeatmap={showHeatmap}
                 onMarkerClick={(loc) => console.log('Marker clicked:', loc)}
               />
             )}
-            {activeView === 'network' && (
+            {effectiveView === 'network' && (
               <NetworkGraph
                 onPersonSelect={handlePersonSelect}
                 selectedPersonId={selectedPersonId}
               />
             )}
-            {activeView === 'admin' && (
+            {effectiveView === 'admin' && (
               <div className="w-full h-full overflow-y-auto admin-content-area" style={{ background: 'var(--bg-void)' }}>
                 <AdminPage />
               </div>
@@ -136,7 +149,7 @@ function AppContent() {
         <div className="flex items-center gap-3">
           <div className="hidden md:flex items-center gap-1.5 text-[11px] font-medium" style={{ color: 'var(--text-tertiary)' }}>
             <MapPin className="w-3 h-3" />
-            <span>Chiang Rai</span>
+            <span>สามพราน · นครปฐม</span>
           </div>
 
           <div className="hidden lg:flex items-center gap-1.5 text-[11px] font-mono" style={{ color: 'var(--text-tertiary)' }}>
@@ -144,17 +157,20 @@ function AppContent() {
             <span>{new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
           </div>
 
-          <button
-            onClick={() => setShowCsvUploader(true)}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] font-semibold transition-all duration-300"
-            style={{ background: 'var(--glass-regular)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)' }}
-            onMouseOver={e => { e.currentTarget.style.background = 'var(--accent-blue)'; e.currentTarget.style.color = 'white'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(10, 132, 255, 0.35)'; }}
-            onMouseOut={e => { e.currentTarget.style.background = 'var(--glass-regular)'; e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.boxShadow = 'none'; }}
-            title="Import CSV Cases"
-          >
-            <Upload className="w-3 h-3" />
-            <span className="hidden md:inline">Import CSV</span>
-          </button>
+          {/* Import CSV — Admin only (RBAC) */}
+          {canAdmin && (
+            <button
+              onClick={() => setShowCsvUploader(true)}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] font-semibold transition-all duration-300"
+              style={{ background: 'var(--glass-regular)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)' }}
+              onMouseOver={e => { e.currentTarget.style.background = 'var(--accent-blue)'; e.currentTarget.style.color = 'white'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(10, 132, 255, 0.35)'; }}
+              onMouseOut={e => { e.currentTarget.style.background = 'var(--glass-regular)'; e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.boxShadow = 'none'; }}
+              title="Import CSV Cases"
+            >
+              <Upload className="w-3 h-3" />
+              <span className="hidden md:inline">Import CSV</span>
+            </button>
+          )}
 
           <div className="status-indicator status-online">
             <Radio className="w-3 h-3 animate-pulse" />
@@ -162,19 +178,42 @@ function AppContent() {
           </div>
 
           <ThemeToggle />
+
+          {/* Current user + role + logout */}
+          {user && (
+            <div className="flex items-center gap-2 pl-3" style={{ borderLeft: '1px solid var(--border-subtle)' }}>
+              <div className="hidden sm:flex flex-col items-end leading-tight">
+                <span className="text-[11px] font-semibold" style={{ color: 'var(--text-secondary)' }}>{user.fullName || user.username}</span>
+                <span className="text-[9px] font-bold uppercase" style={{ color: ROLE_ACCENT[user.role] || 'var(--text-tertiary)', letterSpacing: '0.06em' }}>
+                  {user.role}
+                </span>
+              </div>
+              <button
+                onClick={logout}
+                className="p-1.5 rounded-xl transition-all duration-300"
+                style={{ background: 'var(--glass-regular)', color: 'var(--text-tertiary)', border: '1px solid var(--border-subtle)' }}
+                onMouseOver={e => { e.currentTarget.style.background = 'var(--accent-red)'; e.currentTarget.style.color = 'white'; }}
+                onMouseOut={e => { e.currentTarget.style.background = 'var(--glass-regular)'; e.currentTarget.style.color = 'var(--text-tertiary)'; }}
+                title="ออกจากระบบ (Logout)"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
         </div>
       </header>
 
       {/* Left Panel — Floating sidebar */}
       <ErrorBoundary>
         <Sidebar
-          activeView={activeView}
+          activeView={effectiveView}
           onViewChange={setActiveView}
           onFlyTo={handleFlyTo}
           onPersonSelect={handlePersonSelect}
           selectedPersonId={selectedPersonId}
           showHeatmap={showHeatmap}
           onToggleHeatmap={handleToggleHeatmap}
+          canAdmin={canAdmin}
         />
       </ErrorBoundary>
 
@@ -212,11 +251,19 @@ function AppContent() {
   );
 }
 
+// Gate the app behind authentication; restore any persisted backend session.
+function AuthGate() {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const restoreSession = useAuthStore((s) => s.restoreSession);
+  useEffect(() => { restoreSession(); }, [restoreSession]);
+  return isAuthenticated ? <AppContent /> : <LoginPage />;
+}
+
 function App() {
   return (
     <ErrorBoundary>
       <ThemeProvider>
-        <AppContent />
+        <AuthGate />
       </ThemeProvider>
     </ErrorBoundary>
   );

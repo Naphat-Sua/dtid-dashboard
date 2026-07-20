@@ -33,6 +33,89 @@ export const useThemeStore = create(
   )
 );
 
+// ── Role hierarchy for RBAC (mirrors the server) ──
+const ROLE_LEVEL = { Viewer: 1, Analyst: 2, Admin: 3 };
+const DEMO_NAMES = {
+  Admin: 'ผู้ดูแลระบบ (Demo)',
+  Analyst: 'นักวิเคราะห์ (Demo)',
+  Viewer: 'ผู้บังคับบัญชา (Demo)',
+};
+
+// Auth Store — JWT session + RBAC. The refresh token is persisted (so a
+// session survives reload); the access token lives only in memory.
+export const useAuthStore = create(
+  persist(
+    (set, get) => ({
+      user: null,            // { userId, username, fullName, role }
+      refreshToken: null,    // persisted; access token stays in dbService memory
+      isDemo: false,         // demo mode = client-only role, no backend
+      isAuthenticated: false,
+      authError: null,
+      isAuthLoading: false,
+
+      // Real login against the backend (/api/auth/login).
+      login: async (username, password) => {
+        set({ isAuthLoading: true, authError: null });
+        try {
+          const { user } = await dbService.login(username, password);
+          set({ user, refreshToken: dbService.refreshToken, isDemo: false, isAuthenticated: true, isAuthLoading: false });
+          return true;
+        } catch (e) {
+          set({ authError: e.message || 'เข้าสู่ระบบไม่สำเร็จ', isAuthLoading: false, isAuthenticated: false });
+          return false;
+        }
+      },
+
+      // Demo login — pick a role locally (no backend needed, for the offline demo).
+      loginDemo: (role) => {
+        dbService.clearAuth();
+        set({
+          user: { userId: null, username: role.toLowerCase(), fullName: DEMO_NAMES[role] || role, role },
+          refreshToken: null, isDemo: true, isAuthenticated: true, authError: null,
+        });
+      },
+
+      logout: () => {
+        if (!get().isDemo) dbService.logout();
+        else dbService.clearAuth();
+        set({ user: null, refreshToken: null, isDemo: false, isAuthenticated: false, authError: null });
+      },
+
+      // Restore a real backend session at startup using the persisted refresh token.
+      restoreSession: async () => {
+        if (get().isDemo || !get().refreshToken) return;
+        try {
+          dbService.setRefreshToken(get().refreshToken);
+          const { user } = await dbService.refresh();
+          set({ user, refreshToken: dbService.refreshToken, isAuthenticated: true });
+        } catch {
+          set({ user: null, refreshToken: null, isAuthenticated: false });
+        }
+      },
+
+      hasRole: (minRole) => {
+        const r = get().user?.role;
+        return r ? (ROLE_LEVEL[r] || 0) >= (ROLE_LEVEL[minRole] || 99) : false;
+      },
+    }),
+    {
+      name: 'dtid-auth',
+      partialize: (s) => ({ user: s.user, refreshToken: s.refreshToken, isDemo: s.isDemo }),
+      // Restore isAuthenticated from persisted user; hand the refresh token to dbService.
+      onRehydrateStorage: () => (state) => {
+        if (!state) return;
+        if (state.user) state.isAuthenticated = true;
+        if (state.refreshToken) dbService.setRefreshToken(state.refreshToken);
+      },
+    }
+  )
+);
+
+// Let dbService push rotated refresh tokens back into the persisted store.
+dbService.onTokens = ({ refreshToken }) => {
+  useAuthStore.setState({ refreshToken: refreshToken || null });
+};
+
 // Database connection state
 const DB_MODE = {
   LOCAL: 'local',    // Use local state only (mock data)
@@ -628,7 +711,6 @@ export const useDataStore = create(
       },
 
       syncToDatabase: async () => {
-        const state = get();
         set({ isLoading: true, lastError: null });
         
         try {

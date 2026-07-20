@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useMemo, useState, useCallback } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap, Circle, CircleMarker } from 'react-leaflet';
-import L from 'leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap, Circle, CircleMarker, Polyline } from 'react-leaflet';
+import L from '../leafletSetup'; // exposes window.L before the leaflet.heat UMD plugin loads
 import 'leaflet.heat';
 import { 
   MapPin, AlertTriangle, Home, Package, User, Calendar, Scale,
@@ -9,10 +9,9 @@ import {
 import { useDataStore, useThemeStore } from '../store/useStore';
 import { useShallow } from 'zustand/react/shallow';
 import { 
-  performSpatialAnalysis, 
-  getHotspotColor, 
+  performSpatialAnalysis,
+  getHotspotColor,
   getClassificationLabel,
-  performKDE,
   kdeToImageData,
   calculateOptimalBandwidth,
   calculateAdaptiveThreshold,
@@ -24,6 +23,8 @@ import PoliceStationLayer from './PoliceStationLayer';
 import { loadAllLayers } from '../services/gisService';
 import { getDemoGISLayers } from '../data/demoGISData';
 import AnalysisControls from './AnalysisControls';
+import { filterCasesByProvince, locationMatchesProvince } from '../utils/provinceFilter';
+import { analyzeCorridors } from '../utils/roadNetwork';
 
 // ── Zustand shallow selectors — avoids re-render on unrelated state changes ──
 const selectMapData = (s) => ({
@@ -138,16 +139,6 @@ const HeatmapLayer = ({ points }) => {
   }, [map, points]);
 
   return null;
-};
-
-// Helper function for density colors with smooth interpolation
-const getDensityColor = (normalizedDensity) => {
-  if (normalizedDensity > 0.8) return '#7f1d1d';
-  if (normalizedDensity > 0.6) return '#991b1b';
-  if (normalizedDensity > 0.45) return '#dc2626';
-  if (normalizedDensity > 0.3) return '#ef4444';
-  if (normalizedDensity > 0.2) return '#f97316';
-  return '#fbbf24';
 };
 
 // ── True KDE Raster Layer — canvas-based density surface via L.ImageOverlay ──
@@ -301,12 +292,6 @@ const HotspotLayer = ({ giResults, onMarkerClick }) => {
   );
 };
 
-// Analysis Statistics Panel — now a compact summary since AnalysisControls handles detail
-const AnalysisStatsPanel = ({ giResults, kdeResult }) => {
-  // This component is now superseded by AnalysisControls; kept for backward compat
-  return null;
-};
-
 // Fly to location component
 const FlyToLocation = ({ center, zoom }) => {
   const map = useMap();
@@ -357,7 +342,7 @@ const CrimeMap = ({ flyToLocation, showHeatmap = true, onMarkerClick }) => {
   
   // Visualization mode state
   const [vizMode, setVizMode] = useState('heatmap'); // 'heatmap' | 'kde' | 'hotspot' | 'all'
-  const [showStats, setShowStats] = useState(true);
+  const [showCorridors, setShowCorridors] = useState(false); // road-network trafficking corridors
   const [mapZoom, setMapZoom] = useState(10);
   
   // ── Analysis parameters — user-controllable via AnalysisControls ──
@@ -365,7 +350,7 @@ const CrimeMap = ({ flyToLocation, showHeatmap = true, onMarkerClick }) => {
   
   // GIS layers state
   const [gisLayers, setGisLayers] = useState(null);
-  const [gisLayersLoading, setGisLayersLoading] = useState(false);
+  const [, setGisLayersLoading] = useState(false);
   // Base layer — mutually exclusive: 'provinces' | 'policeStations' | null
   const [activeBaseLayer, setActiveBaseLayer] = useState('provinces');
   const [visibleGISLayers, setVisibleGISLayers] = useState({
@@ -378,9 +363,9 @@ const CrimeMap = ({ flyToLocation, showHeatmap = true, onMarkerClick }) => {
     forests: false
   });
   
-  // Center on Chiang Rai
-  const defaultCenter = [20.15, 99.95];
-  const defaultZoom = 10;
+  // Center on อ.สามพราน จ.นครปฐม (study area)
+  const defaultCenter = [13.72, 100.22];
+  const defaultZoom = 12;
 
   // Load GIS layers on mount
   useEffect(() => {
@@ -389,11 +374,16 @@ const CrimeMap = ({ flyToLocation, showHeatmap = true, onMarkerClick }) => {
         setGisLayersLoading(true);
         try {
           const layers = await loadAllLayers();
-          if (layers.points || layers.lines || layers.polygons) {
+          // Only use the fetched layers if they actually contain features —
+          // otherwise (missing files, or an SPA host returning index.html for
+          // /geojson) fall back to the bundled demo data.
+          const featureCount = ['points', 'lines', 'polygons'].reduce((sum, kind) =>
+            sum + Object.values(layers?.[kind] || {}).reduce((s, fc) => s + (fc?.features?.length || 0), 0), 0);
+          if (featureCount > 0) {
             setGisLayers(layers);
             return;
           }
-        } catch (e) {
+        } catch {
           console.log('GeoJSON files not available, using demo data');
         }
         const demoLayers = getDemoGISLayers();
@@ -438,8 +428,12 @@ const CrimeMap = ({ flyToLocation, showHeatmap = true, onMarkerClick }) => {
   const handleZoomChange = useCallback((z) => setMapZoom(z), []);
 
   // ── Compute derived data with stable deps ──
+  // Province filter scopes the whole map experience: filtering cases here
+  // cascades to markers, heatmap, KDE and the Gi*/Moran's I/ANN analysis,
+  // since they all derive from caseLocations.
   const caseLocations = useMemo(() => {
-    return cases.map(c => {
+    const scopedCases = filterCasesByProvince(cases, locations, selectedProvince);
+    return scopedCases.map(c => {
       const location = locations.find(l => l.LocationID === c.LocationID);
       const seizures = drugSeizures.filter(s => s.CaseID === c.CaseID);
       const involvedPersonIds = personCases.filter(pc => pc.CaseID === c.CaseID);
@@ -449,7 +443,7 @@ const CrimeMap = ({ flyToLocation, showHeatmap = true, onMarkerClick }) => {
       }));
       return { ...location, case: c, seizures, involvedPersons };
     });
-  }, [cases, locations, drugSeizures, personCases, persons]);
+  }, [cases, locations, drugSeizures, personCases, persons, selectedProvince]);
 
   // Prepare aggregated analysis points
   const analysisPoints = useMemo(() => {
@@ -528,13 +522,23 @@ const CrimeMap = ({ flyToLocation, showHeatmap = true, onMarkerClick }) => {
         locMap.get(loc.LocationID).cases.push(loc.case);
       }
     });
-    locations.forEach(loc => {
-      if (!locMap.has(loc.LocationID)) {
-        locMap.set(loc.LocationID, { ...loc, cases: [], persons: [] });
-      }
-    });
+    // Also show caseless locations, but respect the province filter.
+    locations
+      .filter(loc => locationMatchesProvince(loc, selectedProvince))
+      .forEach(loc => {
+        if (!locMap.has(loc.LocationID)) {
+          locMap.set(loc.LocationID, { ...loc, cases: [], persons: [] });
+        }
+      });
     return Array.from(locMap.values());
-  }, [caseLocations, locations]);
+  }, [caseLocations, locations, selectedProvince]);
+
+  // Road-network trafficking corridors (computed only when the layer is on)
+  const corridorData = useMemo(() => {
+    if (!showCorridors) return { segments: [] };
+    const roads = gisLayers?.lines?.roads?.features || [];
+    return analyzeCorridors(roads, analysisPoints);
+  }, [showCorridors, gisLayers, analysisPoints]);
 
   // Theme
   const { theme } = useThemeStore();
@@ -574,6 +578,20 @@ const CrimeMap = ({ flyToLocation, showHeatmap = true, onMarkerClick }) => {
 
         {/* Zoom observer — feeds zoom level for adaptive resolution */}
         <ZoomObserver onZoomChange={handleZoomChange} />
+
+        {/* Road-network trafficking corridors — width/colour by usage weight */}
+        {showCorridors && corridorData.segments.map((seg, i) => (
+          <Polyline
+            key={`corridor-${i}`}
+            positions={[seg.from, seg.to]}
+            pathOptions={{
+              color: seg.weight > 0.66 ? '#ef4444' : seg.weight > 0.33 ? '#f97316' : '#fbbf24',
+              weight: 2 + seg.weight * 7,
+              opacity: 0.85,
+              lineCap: 'round',
+            }}
+          />
+        ))}
 
         {/* Visualization Layers based on mode */}
         {(vizMode === 'heatmap' || vizMode === 'all') && showHeatmap && (
@@ -739,6 +757,24 @@ const CrimeMap = ({ flyToLocation, showHeatmap = true, onMarkerClick }) => {
             </button>
           ))}
         </div>
+
+        {/* Road-network corridor overlay toggle (independent of mode) */}
+        <div className="mt-2 pt-2" style={{ borderTop: '1px solid var(--border-subtle)' }}>
+          <button
+            onClick={() => setShowCorridors(v => !v)}
+            className="w-full flex items-center gap-2 px-3 py-1.5 rounded text-xs font-medium transition-colors"
+            style={showCorridors
+              ? { background: 'var(--accent-red)', color: '#fff', boxShadow: '0 0 12px rgba(255,69,58,0.35)' }
+              : { background: 'var(--glass-thin)', color: 'var(--text-secondary)' }}
+            title="วิเคราะห์เส้นทางลำเลียงบนโครงข่ายถนน (shortest paths ระหว่างจุดกิจกรรมสูง)"
+          >
+            <span>🛣️</span>
+            เส้นทางลำเลียง (Corridors)
+            {showCorridors && corridorData.segments.length > 0 && (
+              <span className="ml-auto text-[10px] font-mono opacity-90">{corridorData.segments.length}</span>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* ── Analysis Controls — parameter sliders + stats + methodology ── */}
@@ -749,6 +785,8 @@ const CrimeMap = ({ flyToLocation, showHeatmap = true, onMarkerClick }) => {
           autoValues={autoValues}
           giSummary={spatialAnalysis?.giStar?.summary}
           kdeResult={spatialAnalysis?.kde}
+          moransI={spatialAnalysis?.moransI}
+          ann={spatialAnalysis?.ann}
           vizMode={vizMode}
         />
       )}
@@ -775,7 +813,7 @@ const CrimeMap = ({ flyToLocation, showHeatmap = true, onMarkerClick }) => {
               Province Filter:
             </span>
             <span className="text-sm font-semibold" style={{ color: 'var(--accent-cyan)' }}>
-              {selectedProvince}
+              {selectedProvince.th}{selectedProvince.en ? ` (${selectedProvince.en})` : ''}
             </span>
           </div>
           <button

@@ -646,11 +646,158 @@ const _emptySummary = (n, threshold, globalMean, globalStdDev) => ({
 });
 
 // ============================================================
+//  GLOBAL SPATIAL AUTOCORRELATION — Moran's I
+// ============================================================
+
+/**
+ * Global Moran's I — measures whether the attribute values are clustered,
+ * dispersed, or randomly distributed across space as a whole.
+ *
+ *   I = (n / S0) · [ ΣᵢΣⱼ wᵢⱼ (xᵢ − x̄)(xⱼ − x̄) ] / Σᵢ (xᵢ − x̄)²
+ *
+ * Significance is assessed against the normality-assumption variance,
+ * giving a Z-score and p-value (E[I] = −1/(n−1)).
+ */
+export const performMoransI = (points, options = {}) => {
+  const { distanceThreshold = null, attributeField = 'value', rowStandardized = true } = options;
+  const n = points.length;
+  const expectedI = n > 1 ? -1 / (n - 1) : 0;
+  if (n < 3) {
+    return { I: 0, expectedI, variance: 0, zScore: 0, pValue: 1, pattern: 'Insufficient data', significant: false, n };
+  }
+
+  const values = points.map(p => {
+    const v = p[attributeField];
+    return typeof v === 'number' && !isNaN(v) ? v : 1;
+  });
+  const xBar = mean(values);
+  const dev = values.map(v => v - xBar);
+  const denom = dev.reduce((s, d) => s + d * d, 0);
+  if (denom === 0) {
+    return { I: 0, expectedI, variance: 0, zScore: 0, pValue: 1, pattern: 'No variation', significant: false, n };
+  }
+
+  const threshold = distanceThreshold || calculateAdaptiveThreshold(points);
+
+  // Binary contiguity within threshold; self-weight = 0 (Moran excludes self).
+  const W = new Array(n);
+  for (let i = 0; i < n; i++) {
+    W[i] = new Float64Array(n);
+    for (let j = 0; j < n; j++) {
+      if (i === j) continue;
+      const d = haversineDistance(points[i].lat, points[i].lng, points[j].lat, points[j].lng);
+      W[i][j] = d <= threshold ? 1 : 0;
+    }
+  }
+  if (rowStandardized) {
+    for (let i = 0; i < n; i++) {
+      let rowSum = 0;
+      for (let j = 0; j < n; j++) rowSum += W[i][j];
+      if (rowSum > 0) for (let j = 0; j < n; j++) W[i][j] /= rowSum;
+    }
+  }
+
+  let S0 = 0, cross = 0;
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < n; j++) {
+      const w = W[i][j];
+      if (w === 0) continue;
+      S0 += w;
+      cross += w * dev[i] * dev[j];
+    }
+  }
+  if (S0 === 0) {
+    return { I: 0, expectedI, variance: 0, zScore: 0, pValue: 1, pattern: 'No neighbors within threshold', significant: false, n, distanceThreshold: threshold };
+  }
+
+  const I = (n / S0) * (cross / denom);
+
+  // Normality-assumption variance: needs S1, S2 from the weight matrix.
+  const rs = new Float64Array(n), cs = new Float64Array(n);
+  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) { rs[i] += W[i][j]; cs[j] += W[i][j]; }
+  let S1 = 0;
+  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) { const s = W[i][j] + W[j][i]; S1 += s * s; }
+  S1 /= 2;
+  let S2 = 0;
+  for (let i = 0; i < n; i++) { const t = rs[i] + cs[i]; S2 += t * t; }
+
+  const varN = (n * n * S1 - n * S2 + 3 * S0 * S0) / (S0 * S0 * (n * n - 1)) - expectedI * expectedI;
+  const variance = Math.max(0, varN);
+  const zScore = variance > 0 ? (I - expectedI) / Math.sqrt(variance) : 0;
+  const pValue = zScoreToPValue(zScore);
+
+  let pattern = 'Random';
+  if (zScore >= 1.645 && I > expectedI) pattern = 'Clustered';
+  else if (zScore <= -1.645 && I < expectedI) pattern = 'Dispersed';
+
+  return { I, expectedI, variance, zScore, pValue, pattern, significant: Math.abs(zScore) >= 1.645, n, distanceThreshold: threshold };
+};
+
+// ============================================================
+//  AVERAGE NEAREST NEIGHBOR (ANN)
+// ============================================================
+
+/**
+ * Average Nearest Neighbor — compares the observed mean nearest-neighbor
+ * distance to that expected under complete spatial randomness (CSR).
+ *
+ *   R = D̄_observed / D̄_expected,  D̄_expected = 0.5 / √(n / A)
+ *
+ * R < 1 → clustered, R ≈ 1 → random, R > 1 → dispersed. Area A defaults to
+ * the bounding box of the points (km²) when not supplied.
+ */
+export const performANN = (points, options = {}) => {
+  const { area = null } = options;
+  const n = points.length;
+  if (n < 3) {
+    return { observedMeanDistance: 0, expectedMeanDistance: 0, nnRatio: 0, zScore: 0, pValue: 1, pattern: 'Insufficient data', significant: false, n, area: 0 };
+  }
+
+  let A = area;
+  if (!A || A <= 0) {
+    const lats = points.map(p => p.lat), lngs = points.map(p => p.lng);
+    const latMin = Math.min(...lats), latMax = Math.max(...lats);
+    const lngMin = Math.min(...lngs), lngMax = Math.max(...lngs);
+    const latMid = (latMin + latMax) / 2, lngMid = (lngMin + lngMax) / 2;
+    const width  = haversineDistance(latMid, lngMin, latMid, lngMax);
+    const height = haversineDistance(latMin, lngMid, latMax, lngMid);
+    A = width * height;
+  }
+  if (!A || A <= 0) {
+    return { observedMeanDistance: 0, expectedMeanDistance: 0, nnRatio: 0, zScore: 0, pValue: 1, pattern: 'Degenerate area', significant: false, n, area: 0 };
+  }
+
+  let sumNN = 0;
+  for (let i = 0; i < n; i++) {
+    let minD = Infinity;
+    for (let j = 0; j < n; j++) {
+      if (i === j) continue;
+      const d = haversineDistance(points[i].lat, points[i].lng, points[j].lat, points[j].lng);
+      if (d < minD) minD = d;
+    }
+    if (minD !== Infinity) sumNN += minD;
+  }
+  const observed = sumNN / n;
+  const density = n / A;
+  const expected = 0.5 / Math.sqrt(density);
+  const nnRatio = expected > 0 ? observed / expected : 0;
+  const SE = 0.26136 / Math.sqrt(n * density);
+  const zScore = SE > 0 ? (observed - expected) / SE : 0;
+  const pValue = zScoreToPValue(zScore);
+
+  let pattern = 'Random';
+  if (zScore <= -1.645) pattern = 'Clustered';
+  else if (zScore >= 1.645) pattern = 'Dispersed';
+
+  return { observedMeanDistance: observed, expectedMeanDistance: expected, nnRatio, zScore, pValue, pattern, significant: Math.abs(zScore) >= 1.645, n, area: A };
+};
+
+// ============================================================
 //  COMBINED ANALYSIS ORCHESTRATOR
 // ============================================================
 
 /**
- * Run KDE + Gi* in one call. Parameters are passed through from the UI.
+ * Run KDE + Gi* + Moran's I + ANN in one call. Parameters pass through from the UI.
  */
 export const performSpatialAnalysis = (points, options = {}) => {
   const {
@@ -685,7 +832,14 @@ export const performSpatialAnalysis = (points, options = {}) => {
     idwPower:          giIdwPower,
   });
 
-  return { kde, giStar, points: prepared };
+  // Global measures — overall clustering/dispersion of the case distribution.
+  const moransI = performMoransI(prepared, {
+    distanceThreshold: giDistanceThreshold,
+    attributeField:    'value',
+  });
+  const ann = performANN(prepared, {});
+
+  return { kde, giStar, moransI, ann, points: prepared };
 };
 
 // ============================================================
@@ -717,6 +871,8 @@ export const getClassificationLabel = (zScore) => {
 export default {
   performKDE,
   performGetisOrdGiStar,
+  performMoransI,
+  performANN,
   performSpatialAnalysis,
   kdeToImageData,
   haversineDistance,

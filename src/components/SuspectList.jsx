@@ -15,21 +15,39 @@ import {
 } from 'lucide-react';
 import { useDataStore } from '../store/useStore';
 import { useShallow } from 'zustand/react/shallow';
+import { getRiskConfig } from '../utils/riskLevels';
+import { filterCasesByProvince, getPersonIdsForCases } from '../utils/provinceFilter';
 
 const SuspectList = ({ onFlyTo, onPersonSelect, selectedPersonId }) => {
-  const { persons, locations, cases, getCasesForPerson } = useDataStore(
-    useShallow(s => ({ persons: s.persons, locations: s.locations, cases: s.cases, getCasesForPerson: s.getCasesForPerson }))
+  const { persons, locations, cases, personCases, getCasesForPerson, selectedProvince } = useDataStore(
+    useShallow(s => ({
+      persons: s.persons, locations: s.locations, cases: s.cases,
+      personCases: s.personCases, getCasesForPerson: s.getCasesForPerson,
+      selectedProvince: s.selectedProvince,
+    }))
   );
-  
+
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all'); // all, Arrested, Suspect
 
   // Helper to get location by ID
   const getLocationById = (id) => locations.find(l => l.LocationID === id);
 
+  // Case IDs within the selected province (null = no province filter active)
+  const scopedCaseIds = useMemo(() => (
+    selectedProvince
+      ? new Set(filterCasesByProvince(cases, locations, selectedProvince).map(c => c.CaseID))
+      : null
+  ), [cases, locations, selectedProvince]);
+
   // Filter and search persons
   const filteredPersons = useMemo(() => {
+    const scopedPersonIds = scopedCaseIds ? getPersonIdsForCases(personCases, scopedCaseIds) : null;
+
     return persons.filter(person => {
+      // Province filter — only people tied to a case in the selected province
+      if (scopedPersonIds && !scopedPersonIds.has(person.PersonID)) return false;
+
       // Status filter
       if (statusFilter !== 'all' && person.Status !== statusFilter) {
         return false;
@@ -48,7 +66,7 @@ const SuspectList = ({ onFlyTo, onPersonSelect, selectedPersonId }) => {
 
       return true;
     });
-  }, [persons, searchQuery, statusFilter]);
+  }, [persons, personCases, scopedCaseIds, searchQuery, statusFilter]);
 
   const handleFlyTo = (person) => {
     const location = getLocationById(person.CurrentAddressID);
@@ -65,13 +83,6 @@ const SuspectList = ({ onFlyTo, onPersonSelect, selectedPersonId }) => {
     if (onPersonSelect) {
       onPersonSelect(person);
     }
-  };
-
-  // Get risk level based on role
-  const getRiskLevel = (role) => {
-    if (role === 'Boss') return { level: 'critical', label: 'CRITICAL', color: 'red' };
-    if (role === 'Manager') return { level: 'high', label: 'HIGH', color: 'orange' };
-    return { level: 'medium', label: 'MEDIUM', color: 'yellow' };
   };
 
   return (
@@ -139,9 +150,13 @@ const SuspectList = ({ onFlyTo, onPersonSelect, selectedPersonId }) => {
         ) : (
           filteredPersons.map((person) => {
             const location = getLocationById(person.CurrentAddressID);
-            const personCases = getCasesForPerson(person.PersonID);
+            const personCaseList = getCasesForPerson(person.PersonID);
+            // Case count respects the active province filter, if any
+            const caseCount = scopedCaseIds
+              ? personCaseList.filter(c => scopedCaseIds.has(c.CaseID)).length
+              : personCaseList.length;
             const isSelected = selectedPersonId === person.PersonID;
-            const risk = getRiskLevel(person.RoleInNetwork);
+            const risk = getRiskConfig(person.RiskLevel);
 
             return (
               <div
@@ -154,8 +169,8 @@ const SuspectList = ({ onFlyTo, onPersonSelect, selectedPersonId }) => {
                 onClick={() => handlePersonClick(person)}
               >
                 {/* Risk indicator strip */}
-                <div className="absolute left-0 top-0 bottom-0 w-1" 
-                  style={{ background: risk.level === 'critical' ? 'var(--accent-red)' : risk.level === 'high' ? 'var(--accent-orange)' : 'var(--accent-yellow)' }}
+                <div className="absolute left-0 top-0 bottom-0 w-1"
+                  style={{ background: risk.colors.raw }}
                 />
 
                 <div className="flex items-start justify-between pl-2">
@@ -168,11 +183,6 @@ const SuspectList = ({ onFlyTo, onPersonSelect, selectedPersonId }) => {
                           : 'bg-gradient-to-br from-amber-500 to-amber-600 ring-2 ring-amber-500/30'}`}>
                         {person.Gender === 'M' ? '👨' : '👩'}
                       </div>
-                      {person.RoleInNetwork === 'Boss' && (
-                        <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-600 rounded-full flex items-center justify-center">
-                          <span className="text-[8px]">👑</span>
-                        </div>
-                      )}
                     </div>
 
                     {/* Info */}
@@ -191,14 +201,14 @@ const SuspectList = ({ onFlyTo, onPersonSelect, selectedPersonId }) => {
                           {person.Status === 'Arrested' ? <UserX className="w-3 h-3" /> : <AlertTriangle className="w-3 h-3" />}
                           {person.Status}
                         </span>
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-semibold"
-                          style={{ background: 'var(--glass-thin)', color: 'var(--text-secondary)' }}>
-                          {person.RoleInNetwork}
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase"
+                          style={{ background: `${risk.colors.raw}22`, color: risk.colors.raw }}>
+                          {risk.label}
                         </span>
-                        {personCases.length > 0 && (
+                        {caseCount > 0 && (
                           <span className="flex items-center gap-1 text-[10px]" style={{ color: 'var(--text-quaternary)' }}>
                             <Briefcase className="w-3 h-3" />
-                            {personCases.length} case{personCases.length > 1 ? 's' : ''}
+                            {caseCount} case{caseCount > 1 ? 's' : ''}
                           </span>
                         )}
                       </div>

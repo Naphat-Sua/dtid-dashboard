@@ -178,6 +178,43 @@ INSERT INTO drug_type_ref (drug_name, drug_name_th, category) VALUES
 ON CONFLICT (drug_name) DO NOTHING;
 
 -- ============================================================
+-- 3.1 Auth & Audit Tables  (RBAC + tamper-evident audit trail)
+-- ============================================================
+
+-- API_USER — application accounts with role-based access control
+CREATE TABLE IF NOT EXISTS api_user (
+    user_id       SERIAL PRIMARY KEY,
+    username      VARCHAR(50) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,          -- bcrypt hash (12 rounds)
+    full_name     VARCHAR(100),
+    role          VARCHAR(20) NOT NULL DEFAULT 'Viewer'
+                  CHECK (role IN ('Viewer', 'Analyst', 'Admin')),
+    is_active     BOOLEAN NOT NULL DEFAULT TRUE,
+    last_login    TIMESTAMPTZ,
+    created_at    TIMESTAMPTZ DEFAULT NOW(),
+    updated_at    TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_api_user_username ON api_user (username);
+
+-- AUDIT_LOG — records every mutating action with a JSONB change payload
+CREATE TABLE IF NOT EXISTS audit_log (
+    log_id       SERIAL PRIMARY KEY,
+    user_id      INT REFERENCES api_user(user_id) ON DELETE SET NULL,
+    username     VARCHAR(50),                     -- denormalised so history survives user deletion
+    action       VARCHAR(20) NOT NULL,            -- CREATE / UPDATE / DELETE / LOGIN / IMPORT
+    entity_type  VARCHAR(50),                     -- person / incident / location / ...
+    entity_id    VARCHAR(50),
+    ip_address   VARCHAR(45),                     -- IPv4 / IPv6
+    changes      JSONB,                           -- { before, after } or arbitrary payload
+    created_at   TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_audit_user   ON audit_log (user_id);
+CREATE INDEX idx_audit_entity ON audit_log (entity_type, entity_id);
+CREATE INDEX idx_audit_time   ON audit_log (created_at DESC);
+
+-- ============================================================
 -- 4. Useful Views
 -- ============================================================
 
@@ -249,3 +286,4 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER trg_person_updated   BEFORE UPDATE ON person   FOR EACH ROW EXECUTE FUNCTION fn_update_timestamp();
 CREATE TRIGGER trg_location_updated BEFORE UPDATE ON location FOR EACH ROW EXECUTE FUNCTION fn_update_timestamp();
 CREATE TRIGGER trg_incident_updated BEFORE UPDATE ON incident FOR EACH ROW EXECUTE FUNCTION fn_update_timestamp();
+CREATE TRIGGER trg_api_user_updated BEFORE UPDATE ON api_user FOR EACH ROW EXECUTE FUNCTION fn_update_timestamp();

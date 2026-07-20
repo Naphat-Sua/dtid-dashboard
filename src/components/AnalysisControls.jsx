@@ -2,14 +2,18 @@ import React, { useState, useCallback } from 'react';
 import {
   SlidersHorizontal, ChevronDown, ChevronUp, Info, Sparkles,
   Flame, Snowflake, BarChart3, Sigma, CircleDot, Ruler, Grid3X3,
-  BookOpen, X
+  BookOpen, X, Globe
 } from 'lucide-react';
+
+// Colour for a global-pattern verdict (Clustered / Dispersed / Random)
+const patternColor = (pattern) =>
+  pattern === 'Clustered' ? 'var(--accent-red)'
+  : pattern === 'Dispersed' ? 'var(--accent-blue)'
+  : 'var(--text-tertiary)';
 import {
   KERNEL_OPTIONS,
   PARAM_RANGES,
   SIGNIFICANCE_LEVELS,
-  calculateOptimalBandwidth,
-  calculateAdaptiveThreshold,
 } from '../utils/spatialAnalysis';
 
 // ── Methodology popover content ──
@@ -51,6 +55,42 @@ const METHODOLOGY = {
       {
         param: 'P-Value',
         detail: 'Probability that the observed clustering occurred by random chance. P < 0.01 → 99% confidence the pattern is real. Calculated from the Z-score using the standard normal CDF.',
+      },
+    ],
+  },
+  moransI: {
+    title: "Global Moran's I",
+    formula: 'I = (n/S₀) · ΣᵢΣⱼ wᵢⱼ(xᵢ−x̄)(xⱼ−x̄) / Σᵢ(xᵢ−x̄)²',
+    sections: [
+      {
+        param: "Moran's I",
+        detail: 'Ranges roughly −1 to +1. Positive → similar values cluster together (high-high / low-low). Negative → dissimilar values neighbour each other. Expected value under randomness is E[I] = −1/(n−1) ≈ 0.',
+      },
+      {
+        param: 'Z-Score & P-Value',
+        detail: 'Tests the observed I against the value expected under spatial randomness (normality assumption). |Z| ≥ 1.96 → the global pattern is statistically significant at 95% confidence.',
+      },
+      {
+        param: 'Interpretation',
+        detail: 'Clustered → incidents form coherent regional patterns worth targeting. Dispersed → an unusually even spread. Random → no global spatial structure.',
+      },
+    ],
+  },
+  ann: {
+    title: 'Average Nearest Neighbor (ANN)',
+    formula: 'R = D̄₍obs₎ / D̄₍exp₎,   D̄₍exp₎ = 0.5 / √(n / A)',
+    sections: [
+      {
+        param: 'NN Ratio (R)',
+        detail: 'R < 1 → points closer together than random (clustered). R ≈ 1 → random (complete spatial randomness). R > 1 → more evenly spaced than random (dispersed).',
+      },
+      {
+        param: 'Z-Score & P-Value',
+        detail: 'Z ≤ −1.96 → significant clustering; Z ≥ 1.96 → significant dispersion, both at 95% confidence.',
+      },
+      {
+        param: 'Study Area (A)',
+        detail: 'Defaults to the bounding box of the analysed points (km²). A larger area lowers the expected distance and raises R.',
       },
     ],
   },
@@ -137,6 +177,8 @@ const AnalysisControls = ({
   autoValues,
   giSummary,
   kdeResult,
+  moransI,
+  ann,
   vizMode,
 }) => {
   const [isExpanded, setIsExpanded] = useState(true);
@@ -153,6 +195,9 @@ const AnalysisControls = ({
 
   const showKDE    = vizMode === 'kde'     || vizMode === 'all';
   const showGiStar = vizMode === 'hotspot' || vizMode === 'all';
+  // Global measures (Moran's I / ANN) apply to the whole pattern — show them
+  // for any statistical mode (not the purely-visual heatmap).
+  const showGlobal = vizMode !== 'heatmap' && (moransI || ann);
 
   return (
     <>
@@ -443,6 +488,90 @@ const AnalysisControls = ({
                   </div>
                 )}
               </div>
+            )}
+
+            {/* ── Global Pattern (Moran's I + ANN) ── */}
+            {showGlobal && (
+              <>
+                {(showKDE || showGiStar) && (
+                  <div style={{ borderTop: '1px solid var(--border-default)' }} />
+                )}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-1.5">
+                    <Globe className="w-3.5 h-3.5" style={{ color: 'var(--accent-cyan)' }} />
+                    <span className="text-[11px] font-semibold tracking-wide uppercase"
+                      style={{ color: 'var(--accent-cyan)' }}>
+                      Global Pattern
+                    </span>
+                  </div>
+
+                  {/* Moran's I */}
+                  {moransI && (
+                    <div className="rounded-lg p-2 space-y-1.5" style={{ background: 'var(--glass-ultra-thin)' }}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1">
+                          <span className="text-[10px] font-semibold" style={{ color: 'var(--text-secondary)' }}>Moran&apos;s I</span>
+                          <button
+                            onClick={() => setActiveMethodology(activeMethodology === 'moransI' ? null : 'moransI')}
+                            className="p-0.5 rounded transition-colors"
+                            style={{ background: activeMethodology === 'moransI' ? 'var(--glass-thick)' : 'transparent' }}
+                          >
+                            <BookOpen className="w-3 h-3" style={{ color: 'var(--text-quaternary)' }} />
+                          </button>
+                        </div>
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded uppercase"
+                          style={{ background: `color-mix(in srgb, ${patternColor(moransI.pattern)} 15%, transparent)`, color: patternColor(moransI.pattern) }}>
+                          {moransI.pattern}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-[10px]">
+                        <span style={{ color: 'var(--text-tertiary)' }}>I:</span>
+                        <span className="font-mono text-right" style={{ color: 'var(--text-primary)' }}>{moransI.I?.toFixed(3)}</span>
+                        <span style={{ color: 'var(--text-tertiary)' }}>E[I]:</span>
+                        <span className="font-mono text-right" style={{ color: 'var(--text-primary)' }}>{moransI.expectedI?.toFixed(3)}</span>
+                        <span style={{ color: 'var(--text-tertiary)' }}>Z-score:</span>
+                        <span className="font-mono text-right" style={{ color: 'var(--text-primary)' }}>{moransI.zScore?.toFixed(2)}</span>
+                        <span style={{ color: 'var(--text-tertiary)' }}>P-value:</span>
+                        <span className="font-mono text-right" style={{ color: 'var(--text-primary)' }}>
+                          {moransI.pValue < 0.001 ? '<0.001' : moransI.pValue?.toFixed(3)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Average Nearest Neighbor */}
+                  {ann && (
+                    <div className="rounded-lg p-2 space-y-1.5" style={{ background: 'var(--glass-ultra-thin)' }}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1">
+                          <span className="text-[10px] font-semibold" style={{ color: 'var(--text-secondary)' }}>Nearest Neighbor</span>
+                          <button
+                            onClick={() => setActiveMethodology(activeMethodology === 'ann' ? null : 'ann')}
+                            className="p-0.5 rounded transition-colors"
+                            style={{ background: activeMethodology === 'ann' ? 'var(--glass-thick)' : 'transparent' }}
+                          >
+                            <BookOpen className="w-3 h-3" style={{ color: 'var(--text-quaternary)' }} />
+                          </button>
+                        </div>
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded uppercase"
+                          style={{ background: `color-mix(in srgb, ${patternColor(ann.pattern)} 15%, transparent)`, color: patternColor(ann.pattern) }}>
+                          {ann.pattern}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-[10px]">
+                        <span style={{ color: 'var(--text-tertiary)' }}>NN Ratio (R):</span>
+                        <span className="font-mono text-right" style={{ color: 'var(--text-primary)' }}>{ann.nnRatio?.toFixed(3)}</span>
+                        <span style={{ color: 'var(--text-tertiary)' }}>Observed:</span>
+                        <span className="font-mono text-right" style={{ color: 'var(--text-primary)' }}>{ann.observedMeanDistance?.toFixed(2)} km</span>
+                        <span style={{ color: 'var(--text-tertiary)' }}>Expected:</span>
+                        <span className="font-mono text-right" style={{ color: 'var(--text-primary)' }}>{ann.expectedMeanDistance?.toFixed(2)} km</span>
+                        <span style={{ color: 'var(--text-tertiary)' }}>Z-score:</span>
+                        <span className="font-mono text-right" style={{ color: 'var(--text-primary)' }}>{ann.zScore?.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </>
             )}
 
             {/* Heatmap note */}

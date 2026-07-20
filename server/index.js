@@ -5,12 +5,17 @@
 // ============================================================
 
 import express from 'express';
-import cors from 'cors';
 import pg from 'pg';
 import multer from 'multer';
 import { Readable } from 'stream';
 import csvParser from 'csv-parser';
 import compression from 'compression';
+
+import { securityMiddleware } from './middleware/security.js';
+import { verifyJwt, requireRole } from './middleware/auth.js';
+import { createAuthRouter } from './routes/auth.js';
+import { makeAudit } from './lib/audit.js';
+import { geocode } from './lib/geocode.js';
 
 const { Pool } = pg;
 
@@ -18,17 +23,23 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // ── Middleware ──────────────────────────────────────────────
-app.use(compression());  // gzip all responses (~70% size reduction)
-app.use(cors());
+// Defense-in-depth chain: Helmet → CORS → Rate limiter → JSON → HPP.
+const security = securityMiddleware();
+app.use(compression());        // gzip all responses (~70% size reduction)
+app.use(security.helmet);      // 1. security headers (CSP, HSTS, X-Frame-Options)
+app.use(security.cors);        // 2. CORS
+app.use(security.limiter);     // 3. rate limiting (sliding window)
 app.use(express.json({ limit: '10mb' }));
+app.use(security.hpp);         // 4. HTTP parameter pollution guard (after body parse)
 
-// ── Request timing header ──────────────────────────────────
-app.use((_req, res, next) => {
+// ── Request timing (slow-request logging) ──────────────────
+// Note: a response header cannot be set from the 'finish' event (headers are
+// already flushed), so we only log slow requests here.
+app.use((req, res, next) => {
   const start = Date.now();
   res.on('finish', () => {
     const ms = Date.now() - start;
-    res.setHeader('X-Response-Time', `${ms}ms`);
-    if (ms > 500) console.warn(`⚠️  Slow response: ${_req.method} ${_req.url} — ${ms}ms`);
+    if (ms > 500) console.warn(`⚠️  Slow response: ${req.method} ${req.url} — ${ms}ms`);
   });
   next();
 });
@@ -37,7 +48,7 @@ app.use((_req, res, next) => {
 const cache = new Map();
 const CACHE_TTL = 30_000; // 30 seconds
 
-function cachedQuery(key, queryFn) {
+function cachedQuery(key) {
   const entry = cache.get(key);
   if (entry && Date.now() - entry.ts < CACHE_TTL) return entry.data;
   return null;
@@ -54,7 +65,7 @@ function invalidateCache(prefix) {
 // Multer — memory storage for CSV uploads
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
   fileFilter: (_req, file, cb) => {
     if (file.mimetype === 'text/csv' || file.originalname.endsWith('.csv')) {
       cb(null, true);
@@ -95,6 +106,46 @@ const rowToCamel = (row) => {
 };
 
 const rowsToCamel = (rows) => rows.map(rowToCamel);
+
+// ============================================================
+// AUTH, RBAC & AUDIT  (documented Defense-in-Depth security model)
+// ============================================================
+const writeAudit = makeAudit(pool);
+
+// Public auth endpoints (login/refresh); logout/me self-protect via verifyJwt.
+app.use('/api/auth', createAuthRouter(pool, writeAudit, security.authLimiter));
+
+// Minimum role required for a request: reads → Viewer, analytics → Analyst,
+// any mutation (POST/PUT/DELETE) or CSV import → Admin.
+function requiredRoleFor(req) {
+  if (req.method !== 'GET') return 'Admin';
+  if (req.path.startsWith('/analytics')) return 'Analyst';
+  return 'Viewer';
+}
+
+// RBAC gate — every /api route except the public health check requires a token.
+app.use('/api', (req, res, next) => {
+  if (req.path === '/health') return next();
+  verifyJwt(req, res, () => requireRole(requiredRoleFor(req))(req, res, next));
+});
+
+// Audit every successful mutation (CREATE / UPDATE / DELETE / IMPORT).
+app.use('/api', (req, res, next) => {
+  if (req.method === 'GET') return next();
+  res.on('finish', () => {
+    if (res.statusCode < 200 || res.statusCode >= 300 || !req.user) return;
+    const seg = req.path.split('/').filter(Boolean); // e.g. ['persons','5']
+    const entityType = seg[0] || 'unknown';
+    const entityId = seg.find((s) => /^\d+$/.test(s)) || null;
+    const action = req.path.startsWith('/upload') ? 'IMPORT'
+      : req.method === 'POST' ? 'CREATE'
+      : req.method === 'PUT' ? 'UPDATE'
+      : req.method === 'DELETE' ? 'DELETE'
+      : req.method;
+    writeAudit(req, { action, entityType, entityId, changes: { path: req.originalUrl, body: req.body } });
+  });
+  next();
+});
 
 // ============================================================
 // PERSON API
@@ -267,8 +318,20 @@ app.get('/api/locations/:id', asyncHandler(async (req, res) => {
 }));
 
 app.post('/api/locations', asyncHandler(async (req, res) => {
-  const { AddressDetail, Latitude, Longitude, LocationType,
+  const { AddressDetail, LocationType,
           Province, District, SubDistrict, PostalCode } = req.body;
+  let { Latitude, Longitude } = req.body;
+
+  // Auto-geocode when coordinates are not supplied (documented behavior).
+  if (Latitude == null || Longitude == null || Latitude === '' || Longitude === '') {
+    const g = await geocode(AddressDetail, { province: Province, district: District, subDistrict: SubDistrict });
+    if (!g) {
+      return res.status(422).json({ message: 'Could not geocode the address — please provide Latitude/Longitude.' });
+    }
+    Latitude = g.latitude;
+    Longitude = g.longitude;
+  }
+
   const { rows } = await pool.query(`
     INSERT INTO location (address_detail, geom, location_type,
       province, district, sub_district, postal_code)
@@ -704,15 +767,17 @@ app.post('/api/upload/csv', upload.single('file'), asyncHandler(async (req, res)
     return res.status(400).json({ message: 'CSV file is empty' });
   }
 
-  // Validate required columns exist
+  // Validate required columns exist. Coordinates may be supplied directly
+  // (latitude/longitude) OR derived from an address column via auto-geocoding.
   const firstRow = records[0];
-  const hasTitle = 'case_number' in firstRow || 'title' in firstRow;
-  const hasLat   = 'latitude' in firstRow || 'lat' in firstRow;
-  const hasLng   = 'longitude' in firstRow || 'lng' in firstRow || 'lon' in firstRow;
+  const hasTitle   = 'case_number' in firstRow || 'title' in firstRow;
+  const hasLat     = 'latitude' in firstRow || 'lat' in firstRow;
+  const hasLng     = 'longitude' in firstRow || 'lng' in firstRow || 'lon' in firstRow;
+  const hasAddress = 'address_detail' in firstRow || 'address' in firstRow;
 
-  if (!hasTitle || !hasLat || !hasLng) {
+  if (!hasTitle || (!(hasLat && hasLng) && !hasAddress)) {
     return res.status(400).json({
-      message: 'CSV must contain columns: case_number (or title), latitude (or lat), longitude (or lng/lon)',
+      message: 'CSV must contain case_number (or title), and either latitude+longitude (or lat/lng/lon) or an address column for auto-geocoding',
       receivedColumns: Object.keys(firstRow)
     });
   }
@@ -720,6 +785,7 @@ app.post('/api/upload/csv', upload.single('file'), asyncHandler(async (req, res)
   const client = await pool.connect();
   const inserted = [];
   const errors = [];
+  let geocodedCount = 0;
 
   try {
     await client.query('BEGIN');
@@ -727,12 +793,22 @@ app.post('/api/upload/csv', upload.single('file'), asyncHandler(async (req, res)
     for (let i = 0; i < records.length; i++) {
       const row = records[i];
       try {
-        const lat = parseFloat(row.latitude || row.lat);
-        const lng = parseFloat(row.longitude || row.lng || row.lon);
+        let lat = parseFloat(row.latitude || row.lat);
+        let lng = parseFloat(row.longitude || row.lng || row.lon);
+        let geocoded = false;
 
+        // Auto-geocode when coordinates are missing but an address is present.
         if (isNaN(lat) || isNaN(lng)) {
-          errors.push({ row: i + 2, message: 'Invalid latitude/longitude' });
-          continue;
+          const addr = row.address_detail || row.address;
+          const g = await geocode(addr, {
+            province: row.province, district: row.district, subDistrict: row.sub_district,
+          });
+          if (g) {
+            lat = g.latitude; lng = g.longitude; geocoded = true;
+          } else {
+            errors.push({ row: i + 2, message: 'Missing coordinates and geocoding failed for address' });
+            continue;
+          }
         }
 
         if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
@@ -780,8 +856,10 @@ app.post('/api/upload/csv', upload.single('file'), asyncHandler(async (req, res)
           longitude: loc.longitude,
           addressDetail: loc.address_detail,
           province: loc.province,
-          district: loc.district
+          district: loc.district,
+          geocoded,
         });
+        if (geocoded) geocodedCount++;
       } catch (rowErr) {
         errors.push({ row: i + 2, message: rowErr.message });
       }
@@ -793,12 +871,14 @@ app.post('/api/upload/csv', upload.single('file'), asyncHandler(async (req, res)
     cache.clear();
 
     res.status(201).json({
-      message: `Successfully imported ${inserted.length} of ${records.length} records`,
+      message: `Successfully imported ${inserted.length} of ${records.length} records`
+        + (geocodedCount ? ` (${geocodedCount} auto-geocoded)` : ''),
       inserted,
       errors,
       total: records.length,
       successCount: inserted.length,
-      errorCount: errors.length
+      errorCount: errors.length,
+      geocodedCount,
     });
   } catch (err) {
     await client.query('ROLLBACK');
