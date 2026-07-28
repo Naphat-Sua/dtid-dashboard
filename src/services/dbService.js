@@ -355,16 +355,23 @@ class DatabaseService {
   // CSV Upload
   // ============================================================
 
-  async uploadCsv(file) {
+  async uploadCsv(file, _retried = false) {
     const formData = new FormData();
     formData.append('file', file);
 
     const url = `${this.baseUrl}/upload/csv`;
-    const response = await fetch(url, {
-      method: 'POST',
-      body: formData,
-      // Note: Do NOT set Content-Type header — browser sets it with boundary
-    });
+    // Attach the Bearer token — /api/upload/csv is Admin-gated. Do NOT set
+    // Content-Type; the browser adds the multipart boundary itself.
+    const headers = {};
+    if (this.accessToken) headers.Authorization = `Bearer ${this.accessToken}`;
+
+    const response = await fetch(url, { method: 'POST', body: formData, headers });
+
+    // Access token expired → refresh once and retry (matches request()).
+    if (response.status === 401 && this.refreshToken && !_retried) {
+      const ok = await this._doRefresh().catch(() => false);
+      if (ok) return this.uploadCsv(file, true);
+    }
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ message: 'Upload failed' }));

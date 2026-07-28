@@ -8,15 +8,18 @@
  * @returns {Promise<Object>} GeoJSON FeatureCollection
  */
 export async function loadGeoJSON(path) {
+  const response = await fetch(path);
+  if (!response.ok) {
+    throw new Error(`Failed to load ${path}: ${response.statusText}`);
+  }
+  // A static-file host serving an SPA returns index.html (HTML, not JSON) for a
+  // missing file with a 200. Detect that so the caller falls back to demo data
+  // cleanly instead of surfacing a scary JSON parse error.
+  const text = await response.text();
   try {
-    const response = await fetch(path);
-    if (!response.ok) {
-      throw new Error(`Failed to load ${path}: ${response.statusText}`);
-    }
-    return await response.json();
-  } catch (error) {
-    console.error(`Error loading GeoJSON from ${path}:`, error);
-    throw error;
+    return JSON.parse(text);
+  } catch {
+    throw new Error(`Not GeoJSON (likely missing file) at ${path}`);
   }
 }
 
