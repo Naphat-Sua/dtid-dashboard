@@ -72,9 +72,8 @@ const LocationPicker = ({
   const defaultCenter = [20.15, 99.95];
   const defaultZoom = 10;
 
-  // Map tile URLs
+  // Map tile URL
   const darkTileUrl = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
-  const lightTileUrl = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
 
   const handleLocationSelect = useCallback((location) => {
     setSelectedLocation(location);

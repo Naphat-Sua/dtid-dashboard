@@ -132,7 +132,6 @@ const RecordCaseForm = ({ onClose, onSuccess }) => {
     handleSubmit,
     control,
     formState: { errors, isSubmitting },
-    watch,
     reset
   } = useForm({
     resolver: zodResolver(caseSchema),
