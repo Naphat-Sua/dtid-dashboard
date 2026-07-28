@@ -149,6 +149,7 @@ const CsvUploader = ({ onClose, onSuccess }) => {
           </div>
           <button
             onClick={onClose}
+            aria-label="ปิด"
             className="p-2 rounded-xl transition-all duration-300"
             style={{ color: 'var(--text-tertiary)' }}
             onMouseOver={e => e.currentTarget.style.background = 'var(--glass-regular)'}
@@ -178,6 +179,7 @@ const CsvUploader = ({ onClose, onSuccess }) => {
                 ref={fileInputRef}
                 type="file"
                 accept=".csv"
+                aria-label="เลือกไฟล์ CSV เพื่อนำเข้า"
                 onChange={handleInputChange}
                 className="hidden"
               />

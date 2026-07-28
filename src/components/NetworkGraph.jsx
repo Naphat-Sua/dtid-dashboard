@@ -485,6 +485,17 @@ const NetworkGraph = ({ onPersonSelect, selectedPersonId }) => {
         })}
       </MapContainer>
 
+      {/* No-results overlay — when a search/filter matches nobody */}
+      {nodes.length === 0 && (
+        <div className="absolute inset-0 z-[500] flex items-center justify-center pointer-events-none">
+          <div className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm"
+            style={{ background: 'var(--glass-regular)', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)' }}>
+            <Network className="w-4 h-4" />
+            ไม่พบบุคคลตามเงื่อนไขที่เลือก
+          </div>
+        </div>
+      )}
+
       {/* TOP TOOLBAR */}
       <div className="network-toolbar">
         <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl" style={{ background: 'var(--glass-thin)', border: '1px solid var(--border-subtle)' }}>
@@ -495,7 +506,7 @@ const NetworkGraph = ({ onPersonSelect, selectedPersonId }) => {
 
         <div className="flex-1 max-w-xs relative">
           <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-tertiary)' }} />
-          <input type="text" placeholder="Search name, alias, ID..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+          <input type="text" placeholder="Search name, alias, ID..." aria-label="ค้นหาบุคคลในเครือข่าย" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
             className="w-full pl-8 pr-3 py-1.5 rounded-xl text-[11px]"
             style={{ background: 'var(--glass-thin)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', outline: 'none' }} />
         </div>
@@ -648,7 +659,7 @@ const NetworkGraph = ({ onPersonSelect, selectedPersonId }) => {
                 <p className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>{`"${selectedNode.alias}"`}</p>
               </div>
             </div>
-            <button onClick={() => setSelectedNode(null)} className="p-1 rounded-lg transition-all" style={{ color: 'var(--text-tertiary)' }}>
+            <button onClick={() => setSelectedNode(null)} aria-label="ปิดรายละเอียด" className="p-1 rounded-lg transition-all" style={{ color: 'var(--text-tertiary)' }}>
               <X className="w-4 h-4" />
             </button>
           </div>

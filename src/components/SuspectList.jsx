@@ -28,6 +28,9 @@ const SuspectList = ({ onFlyTo, onPersonSelect, selectedPersonId }) => {
     }))
   );
 
+  const dbMode = useDataStore((s) => s.dbMode);
+  const isLiveDb = dbMode !== 'local';
+
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'detained' | 'at-large'
 
@@ -111,6 +114,7 @@ const SuspectList = ({ onFlyTo, onPersonSelect, selectedPersonId }) => {
         <input
           type="text"
           placeholder="Search name, alias, or National ID..."
+          aria-label="ค้นหาเป้าหมายด้วยชื่อ ฉายา หรือเลขบัตรประชาชน"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="w-full rounded-2xl pl-10 pr-4 py-2.5 text-sm transition-all duration-300
@@ -269,8 +273,11 @@ const SuspectList = ({ onFlyTo, onPersonSelect, selectedPersonId }) => {
             Displaying {filteredPersons.length} of {persons.length} targets
           </span>
           <span className="flex items-center gap-1">
-            <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: 'var(--accent-green)', boxShadow: 'var(--glow-green)' }} />
-            Live
+            <div className={`w-2 h-2 rounded-full ${isLiveDb ? 'animate-pulse' : ''}`}
+              style={isLiveDb
+                ? { background: 'var(--accent-green)', boxShadow: 'var(--glow-green)' }
+                : { background: 'var(--accent-orange)' }} />
+            {isLiveDb ? 'Live' : 'Demo'}
           </span>
         </div>
       </div>

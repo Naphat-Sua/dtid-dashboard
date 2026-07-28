@@ -146,6 +146,13 @@ const AdminPage = () => {
                   </tr>
                 </thead>
                 <tbody>
+                  {persons.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-12 text-center" style={{ color: 'var(--text-quaternary)' }}>
+                        ยังไม่มีข้อมูลบุคคลในระบบ
+                      </td>
+                    </tr>
+                  )}
                   {persons.map((person) => (
                     <tr
                       key={person.PersonID}
@@ -201,6 +208,7 @@ const AdminPage = () => {
                             onMouseOver={(e) => e.currentTarget.style.background = 'var(--glass-regular)'}
                             onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
                             title="Edit"
+                            aria-label="แก้ไขข้อมูลบุคคล"
                           >
                             <Edit className="w-4 h-4" />
                           </button>
@@ -211,6 +219,7 @@ const AdminPage = () => {
                             onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255, 69, 58, 0.12)'}
                             onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
                             title="Delete"
+                            aria-label="ลบบุคคล"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -292,6 +301,13 @@ const AdminPage = () => {
                   </tr>
                 </thead>
                 <tbody>
+                  {cases.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="px-6 py-12 text-center" style={{ color: 'var(--text-quaternary)' }}>
+                        ยังไม่มีข้อมูลคดีในระบบ
+                      </td>
+                    </tr>
+                  )}
                   {cases.map((caseItem) => {
                     const caseSeizures = drugSeizures.filter(s => s.CaseID === caseItem.CaseID);
                     return (
@@ -332,6 +348,7 @@ const AdminPage = () => {
                               onMouseOver={(e) => e.currentTarget.style.background = 'var(--glass-regular)'}
                               onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
                               title="Edit"
+                              aria-label="แก้ไขคดี"
                             >
                               <Edit className="w-4 h-4" />
                             </button>
@@ -342,6 +359,7 @@ const AdminPage = () => {
                               onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255, 69, 58, 0.12)'}
                               onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
                               title="Delete"
+                              aria-label="ลบคดี"
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
@@ -481,6 +499,7 @@ const AdminPage = () => {
               </h3>
               <button
                 onClick={() => setEditingPerson(null)}
+                aria-label="ปิด"
                 className="p-2 rounded-xl transition-colors"
                 style={{ color: 'var(--text-tertiary)' }}
                 onMouseOver={(e) => e.currentTarget.style.background = 'var(--glass-regular)'}
@@ -668,6 +687,7 @@ const AdminPage = () => {
               </h3>
               <button
                 onClick={() => setEditingCase(null)}
+                aria-label="ปิด"
                 className="p-2 rounded-xl transition-colors"
                 style={{ color: 'var(--text-tertiary)' }}
                 onMouseOver={(e) => e.currentTarget.style.background = 'var(--glass-regular)'}

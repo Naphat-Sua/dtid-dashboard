@@ -59,6 +59,7 @@ const Sidebar = ({
           )}
           <button
             onClick={() => setCollapsed(!collapsed)}
+            aria-label={collapsed ? 'ขยายแถบเมนู' : 'ย่อแถบเมนู'}
             className="p-1.5 rounded-lg transition-all duration-300"
             style={{ color: 'var(--text-tertiary)' }}
             onMouseOver={e => e.currentTarget.style.background = 'var(--glass-regular)'}
@@ -81,6 +82,7 @@ const Sidebar = ({
             <button
               key={item.id}
               onClick={() => onViewChange(item.id)}
+              aria-label={item.label}
               className={`flex items-center gap-2.5 px-3 py-2 rounded-xl transition-all duration-300 w-full group
                 ${activeView === item.id ? 'text-white' : ''}`}
               style={activeView === item.id 

@@ -214,6 +214,7 @@ const AddPersonForm = ({ onClose, onSuccess }) => {
         {onClose && (
           <button
             onClick={onClose}
+            aria-label="ปิดฟอร์ม"
             className="p-2 rounded-xl transition-all duration-300"
             style={{ color: 'var(--text-tertiary)' }}
             onMouseOver={e => e.currentTarget.style.background = 'var(--glass-regular)'}
@@ -436,6 +437,7 @@ const AddPersonForm = ({ onClose, onSuccess }) => {
                     <button
                       type="button"
                       onClick={() => removeContact(index)}
+                      aria-label="ลบช่องทางติดต่อนี้"
                       className="p-1.5 rounded hover:bg-red-600/20 text-red-500 transition-colors"
                     >
                       <Trash2 className="w-4 h-4" />

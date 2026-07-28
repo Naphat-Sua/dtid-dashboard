@@ -257,6 +257,7 @@ const RecordCaseForm = ({ onClose, onSuccess }) => {
         {onClose && (
           <button
             onClick={onClose}
+            aria-label="ปิดฟอร์ม"
             className={"p-2 rounded-xl transition-colors"}
           >
             <X className="w-5 h-5" />
@@ -446,6 +447,7 @@ const RecordCaseForm = ({ onClose, onSuccess }) => {
             <input
               type="text"
               value={personSearch}
+              aria-label="ค้นหาบุคคลที่เกี่ยวข้องในคดี"
               onChange={(e) => {
                 setPersonSearch(e.target.value);
                 setShowPersonDropdown(true);
@@ -531,6 +533,7 @@ const RecordCaseForm = ({ onClose, onSuccess }) => {
                       <button
                         type="button"
                         onClick={() => removeInvolvedPerson(personId)}
+                        aria-label="ลบบุคคลนี้ออกจากคดี"
                         className="p-1.5 rounded hover:bg-red-600/20 text-red-500 transition-colors flex-shrink-0"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -594,6 +597,7 @@ const RecordCaseForm = ({ onClose, onSuccess }) => {
                     <button
                       type="button"
                       onClick={() => removeSeizure(index)}
+                      aria-label="ลบของกลางนี้"
                       className="p-1.5 rounded hover:bg-red-600/20 text-red-500 transition-colors"
                     >
                       <Trash2 className="w-4 h-4" />

@@ -50,7 +50,7 @@ const LoginPage = () => {
           <div className="relative">
             <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-quaternary)' }} />
             <input
-              type="text" autoComplete="username" placeholder="ชื่อผู้ใช้ (Username)"
+              type="text" autoComplete="username" placeholder="ชื่อผู้ใช้ (Username)" aria-label="ชื่อผู้ใช้"
               value={username} onChange={(e) => setUsername(e.target.value)}
               className="w-full rounded-2xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2"
               style={{ background: 'var(--glass-thin)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', '--tw-ring-color': 'var(--accent-blue)' }}
@@ -59,7 +59,7 @@ const LoginPage = () => {
           <div className="relative">
             <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-quaternary)' }} />
             <input
-              type="password" autoComplete="current-password" placeholder="รหัสผ่าน (Password)"
+              type="password" autoComplete="current-password" placeholder="รหัสผ่าน (Password)" aria-label="รหัสผ่าน"
               value={password} onChange={(e) => setPassword(e.target.value)}
               className="w-full rounded-2xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2"
               style={{ background: 'var(--glass-thin)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', '--tw-ring-color': 'var(--accent-blue)' }}

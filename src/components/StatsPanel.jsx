@@ -114,6 +114,11 @@ const StatsPanel = () => {
           Seizure Analysis
         </h3>
         <div className="space-y-3.5">
+          {stats.drugStats.length === 0 && (
+            <p className="text-xs py-2" style={{ color: 'var(--text-quaternary)' }}>
+              ไม่มีข้อมูลการยึดของกลางในพื้นที่ที่เลือก
+            </p>
+          )}
           {stats.drugStats.map((drug, idx) => {
             const maxQuantity = Math.max(...stats.drugStats.map(d => d.totalQuantity));
             const percentage = maxQuantity > 0 ? (drug.totalQuantity / maxQuantity) * 100 : 0;
@@ -154,6 +159,11 @@ const StatsPanel = () => {
           Recent Activity
         </h3>
         <div className="space-y-3">
+          {recentCases.length === 0 && (
+            <p className="text-xs py-2" style={{ color: 'var(--text-quaternary)' }}>
+              ไม่มีคดีล่าสุดในพื้นที่ที่เลือก
+            </p>
+          )}
           {recentCases.map((c) => {
             const statusStyle = c.Status === 'Under Investigation'
               ? { background: 'rgba(255, 159, 10, 0.1)', color: 'var(--accent-orange)', border: '1px solid rgba(255, 159, 10, 0.15)' }
