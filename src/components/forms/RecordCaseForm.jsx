@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useDataStore } from '../../store/useStore';
 import LocationPicker from '../LocationPicker';
+import { CASE_TYPES, CASE_STATUSES as CASE_STATUS } from '../../constants/enums';
 
 // Validation schema for seizure (matches DRUG_SEIZURE table)
 const seizureSchema = z.object({
@@ -47,28 +48,6 @@ const caseSchema = z.object({
   LocationType: z.string().optional(),
   seizures: z.array(seizureSchema).optional()
 });
-
-// Case types (matching schema description)
-const CASE_TYPES = [
-  { value: 'Possession', label: 'ครอบครอง' },
-  { value: 'Trafficking', label: 'ค้า/จำหน่าย' },
-  { value: 'Distribution', label: 'จัดจำหน่าย' },
-  { value: 'Manufacturing', label: 'ผลิต' },
-  { value: 'Import', label: 'นำเข้า' },
-  { value: 'Export', label: 'ส่งออก' },
-  { value: 'Conspiracy', label: 'สมคบ' }
-];
-
-// Case status options (matching schema)
-const CASE_STATUS = [
-  { value: 'Under Investigation', label: 'อยู่ระหว่างสืบสวน' },
-  { value: 'Pending', label: 'รอดำเนินการ' },
-  { value: 'Filed', label: 'ส่งฟ้อง' },
-  { value: 'Court', label: 'อยู่ระหว่างพิจารณาคดี' },
-  { value: 'Adjudicated', label: 'ศาลตัดสินแล้ว' },
-  { value: 'Closed', label: 'ปิดคดี' },
-  { value: 'Appealed', label: 'อุทธรณ์' }
-];
 
 // Drug types (matching DrugType lookup table)
 const DRUG_TYPES = [
@@ -204,8 +183,10 @@ const RecordCaseForm = ({ onClose, onSuccess }) => {
       if (selectedLocation || data.AddressDetail) {
         const newLocation = {
           AddressDetail: data.AddressDetail || `พิกัด: ${selectedLocation?.lat.toFixed(6)}, ${selectedLocation?.lng.toFixed(6)}`,
-          Latitude: selectedLocation?.lat || 0,
-          Longitude: selectedLocation?.lng || 0,
+          // Store null (not 0,0) when no map pin was chosen, so the map doesn't
+          // render a bogus point off the Gulf of Guinea. DB mode geocodes the address.
+          Latitude: selectedLocation?.lat ?? null,
+          Longitude: selectedLocation?.lng ?? null,
           LocationType: data.LocationType || 'CrimeScene',
           Province: data.Province || null,
           District: data.District || null,
@@ -284,7 +265,7 @@ const RecordCaseForm = ({ onClose, onSuccess }) => {
       </div>
 
       {/* Form */}
-      <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-6">
+      <form onSubmit={handleSubmit(onSubmit, () => setSubmitStatus('invalid'))} className="p-6 space-y-6">
         {/* Case Number and Type */}
         <div className="grid grid-cols-2 gap-4">
           <div>
@@ -631,8 +612,11 @@ const RecordCaseForm = ({ onClose, onSuccess }) => {
                           <option key={type.value} value={type.value}>{type.label}</option>
                         ))}
                       </select>
+                      {errors.seizures?.[index]?.DrugType && (
+                        <p className="form-error text-xs">{errors.seizures[index].DrugType.message}</p>
+                      )}
                     </div>
-                    
+
                     <div className="grid grid-cols-2 gap-2">
                       <div>
                         <label className="form-label text-xs">ปริมาณ *</label>
@@ -643,6 +627,9 @@ const RecordCaseForm = ({ onClose, onSuccess }) => {
                           className="form-input text-sm"
                           placeholder="0"
                         />
+                        {errors.seizures?.[index]?.Quantity && (
+                          <p className="form-error text-xs">{errors.seizures[index].Quantity.message}</p>
+                        )}
                       </div>
                       <div>
                         <label className="form-label text-xs">หน่วย *</label>
@@ -702,6 +689,11 @@ const RecordCaseForm = ({ onClose, onSuccess }) => {
               <>
                 <CheckCircle className="w-5 h-5" />
                 <span>บันทึกคดีสำเร็จ!</span>
+              </>
+            ) : submitStatus === 'invalid' ? (
+              <>
+                <AlertCircle className="w-5 h-5" />
+                <span>กรุณากรอกข้อมูลที่จำเป็นให้ครบ (ช่องที่มีเครื่องหมาย *) แล้วลองอีกครั้ง</span>
               </>
             ) : (
               <>

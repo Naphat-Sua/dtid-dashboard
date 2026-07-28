@@ -6,8 +6,6 @@ import {
   Users,
   ChevronLeft,
   ChevronRight,
-  Settings,
-  Bell,
   Search,
   Layers,
   Eye,
@@ -185,25 +183,16 @@ const Sidebar = ({
         </div>
       )}
 
-      {/* Footer */}
-      <div className="px-2.5 py-2" style={{ borderTop: '1px solid var(--border-subtle)' }}>
-        <div className={`flex ${collapsed ? 'flex-col gap-1.5 items-center' : 'justify-between'}`}>
-          <button className="p-2 rounded-lg transition-all duration-300 relative"
-            style={{ color: 'var(--text-quaternary)' }}
-            onMouseOver={e => { e.currentTarget.style.background = 'var(--glass-regular)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
-            onMouseOut={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-quaternary)'; }}
-          >
-            <Bell className="w-3.5 h-3.5" />
-            <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full" style={{ background: 'var(--accent-red)', boxShadow: '0 0 6px rgba(255, 69, 58, 0.5)' }}></span>
-          </button>
+      {/* Footer — honest live-status indicator */}
+      <div className="px-2.5 py-2.5" style={{ borderTop: '1px solid var(--border-subtle)' }}>
+        <div className={`flex items-center ${collapsed ? 'justify-center' : 'gap-2 px-1'}`}>
+          <span className="w-2 h-2 rounded-full animate-pulse flex-shrink-0"
+            style={{ background: 'var(--accent-green)', boxShadow: 'var(--glow-green)' }}
+            title="ระบบพร้อมใช้งาน" />
           {!collapsed && (
-            <button className="p-2 rounded-lg transition-all duration-300"
-              style={{ color: 'var(--text-quaternary)' }}
-              onMouseOver={e => { e.currentTarget.style.background = 'var(--glass-regular)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
-              onMouseOut={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-quaternary)'; }}
-            >
-              <Settings className="w-3.5 h-3.5" />
-            </button>
+            <span className="text-[10px] font-semibold" style={{ letterSpacing: '0.04em', color: 'var(--text-quaternary)' }}>
+              ระบบพร้อมใช้งาน · DTID v1.0
+            </span>
           )}
         </div>
       </div>

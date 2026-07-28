@@ -15,6 +15,13 @@ import {
 } from 'lucide-react';
 import { useDataStore } from '../../store/useStore';
 import LocationPicker from '../LocationPicker';
+import {
+  RISK_LEVELS,
+  RISK_LEVEL_VALUES,
+  PERSON_STATUSES,
+  PERSON_STATUS_VALUES,
+  GENDERS,
+} from '../../constants/enums';
 
 // Contact validation schema (matches PERSON_CONTACT table)
 const contactSchema = z.object({
@@ -36,8 +43,8 @@ const personSchema = z.object({
   Gender: z.enum(['M', 'F', 'O']).optional(),
   HomeAddress: z.string().max(255).optional(),
   CurrentAddress: z.string().max(255).optional(),
-  RiskLevel: z.enum(['Low', 'Medium', 'High', 'Critical']).default('Low'),
-  Status: z.enum(['Active', 'Arrested', 'Released', 'Deceased', 'Unknown']).default('Active'),
+  RiskLevel: z.enum(RISK_LEVEL_VALUES).default('Low'),
+  Status: z.enum(PERSON_STATUS_VALUES).default('Active'),
   Notes: z.string().optional(),
   PhotoURL: z.string().url().optional().or(z.literal('')),
   contacts: z.array(contactSchema).optional()
@@ -52,23 +59,6 @@ const CONTACT_TYPES = [
   { value: 'WhatsApp', label: 'WhatsApp' },
   { value: 'Telegram', label: 'Telegram' },
   { value: 'Other', label: 'อื่นๆ' }
-];
-
-// Risk level options (matches schema ENUM)
-const RISK_LEVELS = [
-  { value: 'Low', label: 'ต่ำ', color: 'green' },
-  { value: 'Medium', label: 'ปานกลาง', color: 'yellow' },
-  { value: 'High', label: 'สูง', color: 'orange' },
-  { value: 'Critical', label: 'วิกฤต', color: 'red' }
-];
-
-// Status options (matches schema ENUM)
-const STATUS_OPTIONS = [
-  { value: 'Active', label: 'เฝ้าระวัง' },
-  { value: 'Arrested', label: 'ถูกจับกุม' },
-  { value: 'Released', label: 'ปล่อยตัว' },
-  { value: 'Deceased', label: 'เสียชีวิต' },
-  { value: 'Unknown', label: 'ไม่ทราบ' }
 ];
 
 const AddPersonForm = ({ onClose, onSuccess }) => {
@@ -343,9 +333,9 @@ const AddPersonForm = ({ onClose, onSuccess }) => {
           <div>
             <label className="form-label">เพศ</label>
             <select {...register('Gender')} className="form-select">
-              <option value="M">ชาย</option>
-              <option value="F">หญิง</option>
-              <option value="O">อื่นๆ</option>
+              {GENDERS.map(g => (
+                <option key={g.value} value={g.value}>{g.label}</option>
+              ))}
             </select>
           </div>
         </div>
@@ -366,7 +356,7 @@ const AddPersonForm = ({ onClose, onSuccess }) => {
           <div>
             <label className="form-label">สถานะ *</label>
             <select {...register('Status')} className="form-select">
-              {STATUS_OPTIONS.map(status => (
+              {PERSON_STATUSES.map(status => (
                 <option key={status.value} value={status.value}>
                   {status.label}
                 </option>

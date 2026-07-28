@@ -15,6 +15,7 @@ import {
 import { useDataStore } from '../store/useStore';
 import { useShallow } from 'zustand/react/shallow';
 import { filterCasesByProvince, getPersonIdsForCases } from '../utils/provinceFilter';
+import { AT_LARGE_STATUSES, DETAINED_STATUSES, CASE_TYPES, CASE_STATUSES, labelFor } from '../constants/enums';
 
 const StatsPanel = () => {
   const { persons, cases, drugSeizures, locations, personCases, selectedProvince } = useDataStore(
@@ -34,8 +35,8 @@ const StatsPanel = () => {
 
     const totalCases = scopedCases.length;
     const activeCases = scopedCases.filter(c => c.Status === 'Under Investigation').length;
-    const totalArrests = scopedPersons.filter(p => p.Status === 'Arrested').length;
-    const totalSuspects = scopedPersons.filter(p => p.Status === 'Active' || p.Status === 'Under Surveillance').length;
+    const totalArrests = scopedPersons.filter(p => DETAINED_STATUSES.includes(p.Status)).length;
+    const totalSuspects = scopedPersons.filter(p => AT_LARGE_STATUSES.includes(p.Status)).length;
     const totalSeizures = scopedSeizures.length;
 
     // Drug seizure stats
@@ -55,7 +56,7 @@ const StatsPanel = () => {
   // Get recent cases (last 3) — also scoped to the selected province
   const recentCases = useMemo(() =>
     [...filterCasesByProvince(cases, locations, selectedProvince)]
-      .sort((a, b) => new Date(b.ArrestDate) - new Date(a.ArrestDate))
+      .sort((a, b) => (a.ArrestDate ? new Date(b.ArrestDate) - new Date(a.ArrestDate) : 1))
       .slice(0, 3),
     [cases, locations, selectedProvince]
   );
@@ -115,7 +116,7 @@ const StatsPanel = () => {
         <div className="space-y-3.5">
           {stats.drugStats.map((drug, idx) => {
             const maxQuantity = Math.max(...stats.drugStats.map(d => d.totalQuantity));
-            const percentage = (drug.totalQuantity / maxQuantity) * 100;
+            const percentage = maxQuantity > 0 ? (drug.totalQuantity / maxQuantity) * 100 : 0;
             const colors = drugColors[drug.type] || { color: 'var(--accent-cyan)', glow: 'rgba(100,210,255,0.2)' };
             
             return (
@@ -174,19 +175,21 @@ const StatsPanel = () => {
                     {c.CaseNumber}
                   </span>
                   <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold" style={statusStyle}>
-                    {c.Status}
+                    {labelFor(CASE_STATUSES, c.Status)}
                   </span>
                 </div>
                 <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-                  {c.CaseType}
+                  {labelFor(CASE_TYPES, c.CaseType)}
                 </p>
                 <p className="text-[10px] mt-1.5 flex items-center gap-1.5" style={{ color: 'var(--text-quaternary)' }}>
                   <Clock className="w-3 h-3" />
-                  {new Date(c.ArrestDate).toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric'
-                  })}
+                  {c.ArrestDate
+                    ? new Date(c.ArrestDate).toLocaleDateString('th-TH', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric'
+                      })
+                    : '—'}
                 </p>
               </div>
             );
@@ -203,9 +206,9 @@ const StatsPanel = () => {
           </span>
         </div>
         <p className="text-xs leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
-          Monitoring <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{stats.totalSuspects + stats.totalArrests}</span> individuals 
-          across <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{stats.totalCases}</span> active investigations. 
-          Primary focus: Methamphetamine networks near the Myanmar-Thailand border.
+          Monitoring <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{stats.totalSuspects + stats.totalArrests}</span> individuals
+          across <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{stats.totalCases}</span> active investigations.
+          Primary focus: methamphetamine trafficking networks in Sam Phran District, Nakhon Pathom.
         </p>
       </div>
     </div>

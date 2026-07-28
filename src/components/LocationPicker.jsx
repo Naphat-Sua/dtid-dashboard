@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { MapPin, Crosshair, Search } from 'lucide-react';
@@ -63,10 +63,18 @@ const LocationPicker = ({
   error
 }) => {
   
-  const [selectedLocation, setSelectedLocation] = useState(value || null);
+  // Fully controlled: the parent owns the selected coordinate via `value`, so an
+  // external change (form reset, editing an existing record) is reflected here
+  // without a prop→state sync effect.
+  const selectedLocation = value || null;
   const [address, setAddress] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Drop the stale reverse-geocoded address when the parent clears the value.
+  useEffect(() => {
+    if (!value) setAddress('');
+  }, [value]);
 
   // Default center: Chiang Rai
   const defaultCenter = [20.15, 99.95];
@@ -76,9 +84,8 @@ const LocationPicker = ({
   const darkTileUrl = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
 
   const handleLocationSelect = useCallback((location) => {
-    setSelectedLocation(location);
     onChange && onChange(location);
-    
+
     // Reverse geocode to get address (using Nominatim)
     fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${location.lat}&lon=${location.lng}`)
       .then(res => res.json())
@@ -145,6 +152,7 @@ const LocationPicker = ({
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
             placeholder="Search location..."
+            aria-label="ค้นหาสถานที่"
             className={"form-input pl-10"}
           />
         </div>
@@ -160,6 +168,7 @@ const LocationPicker = ({
           type="button"
           onClick={handleCenterOnUser}
           title="Use my location"
+          aria-label="ใช้ตำแหน่งปัจจุบันของฉัน"
           className={"p-2 rounded-xl transition-colors"}
         >
           <Crosshair className="w-5 h-5" />
