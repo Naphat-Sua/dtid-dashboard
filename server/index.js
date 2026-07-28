@@ -11,16 +11,25 @@ import { Readable } from 'stream';
 import csvParser from 'csv-parser';
 import compression from 'compression';
 
+import { body, param } from 'express-validator';
+
 import { securityMiddleware } from './middleware/security.js';
 import { verifyJwt, requireRole } from './middleware/auth.js';
 import { createAuthRouter } from './routes/auth.js';
 import { makeAudit } from './lib/audit.js';
 import { geocode } from './lib/geocode.js';
+import { mapError } from './lib/httpErrors.js';
+import { buildUpdate } from './lib/updateBuilder.js';
+import { validate } from './middleware/validate.js';
 
 const { Pool } = pg;
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// Behind a reverse proxy: trust the first hop so express-rate-limit keys on the
+// real client IP (via X-Forwarded-For) and audit logging records it correctly.
+app.set('trust proxy', 1);
 
 // ── Middleware ──────────────────────────────────────────────
 // Defense-in-depth chain: Helmet → CORS → Rate limiter → JSON → HPP.
@@ -92,8 +101,7 @@ pool.on('error', (err) => console.error('Unexpected PG pool error', err));
 const asyncHandler = (fn) => (req, res, next) =>
   Promise.resolve(fn(req, res, next)).catch(next);
 
-/** Convert camelCase JS keys → snake_case for DB, and back */
-const toSnake = (str) => str.replace(/([A-Z])/g, '_$1').toLowerCase();
+/** Convert snake_case DB columns → camelCase JS keys for responses. */
 const toCamel = (str) => str.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
 
 const rowToCamel = (row) => {
@@ -106,6 +114,41 @@ const rowToCamel = (row) => {
 };
 
 const rowsToCamel = (rows) => rows.map(rowToCamel);
+
+// ── Safe UPDATE builder ────────────────────────────────────
+// Column allow-lists (PascalCase request key → exact snake_case column).
+// Building SET clauses only from these fixed maps closes two holes the old
+// dynamic `${key} = $n` loop had: mass-assignment (writing created_at/ids) and
+// identifier SQL-injection (arbitrary JSON keys landing in identifier position).
+const UPDATE_COLS = {
+  person: {
+    FirstName: 'first_name', LastName: 'last_name', Alias: 'alias',
+    NationalID: 'national_id', DateOfBirth: 'date_of_birth', Gender: 'gender',
+    HomeAddress: 'home_address', CurrentAddress: 'current_address',
+    PhotoURL: 'photo_url', RiskLevel: 'risk_level', Status: 'status',
+    Notes: 'notes', CurrentAddressID: 'current_address_id',
+  },
+  incident: {
+    CaseNumber: 'case_number', CaseType: 'case_type', ArrestDate: 'arrest_date',
+    LocationID: 'location_id', Status: 'status', Description: 'description',
+    OfficerInCharge: 'officer_in_charge', CourtCaseNumber: 'court_case_number',
+    Verdict: 'verdict',
+  },
+  location: {
+    AddressDetail: 'address_detail', LocationType: 'location_type',
+    Province: 'province', District: 'district', SubDistrict: 'sub_district',
+    PostalCode: 'postal_code',
+  },
+  contact: {
+    ContactType: 'contact_type', ContactValue: 'contact_value',
+    IsActive: 'is_active', Notes: 'notes',
+  },
+  seizure: {
+    DrugType: 'drug_type', Quantity: 'quantity', Unit: 'unit',
+    EstimatedValue: 'estimated_value', StorageLocation: 'storage_location',
+    Notes: 'notes',
+  },
+};
 
 // ============================================================
 // AUTH, RBAC & AUDIT  (documented Defense-in-Depth security model)
@@ -133,7 +176,10 @@ app.use('/api', (req, res, next) => {
 app.use('/api', (req, res, next) => {
   if (req.method === 'GET') return next();
   res.on('finish', () => {
-    if (res.statusCode < 200 || res.statusCode >= 300 || !req.user) return;
+    if (res.statusCode < 200 || res.statusCode >= 300) return;
+    // Any successful mutation may have changed a cached list → drop all caches.
+    cache.clear();
+    if (!req.user) return;
     const seg = req.path.split('/').filter(Boolean); // e.g. ['persons','5']
     const entityType = seg[0] || 'unknown';
     const entityId = seg.find((s) => /^\d+$/.test(s)) || null;
@@ -174,7 +220,10 @@ app.get('/api/persons/:id', asyncHandler(async (req, res) => {
   res.json(rowToCamel(rows[0]));
 }));
 
-app.post('/api/persons', asyncHandler(async (req, res) => {
+app.post('/api/persons', validate([
+  body('FirstName').trim().notEmpty().withMessage('ต้องระบุชื่อจริง'),
+  body('LastName').trim().notEmpty().withMessage('ต้องระบุนามสกุล'),
+]), asyncHandler(async (req, res) => {
   const {
     FirstName, LastName, Alias, NationalID, DateOfBirth,
     Gender, HomeAddress, CurrentAddress, RiskLevel, Status, Notes, PhotoURL
@@ -244,25 +293,18 @@ app.post('/api/persons/complete', asyncHandler(async (req, res) => {
   }
 }));
 
-app.put('/api/persons/:id', asyncHandler(async (req, res) => {
-  const updates = req.body;
-  const setClauses = [];
-  const values = [];
-  let idx = 1;
+app.put('/api/persons/:id', validate([param('id').isInt()]), asyncHandler(async (req, res) => {
+  const upd = buildUpdate(req.body, UPDATE_COLS.person);
+  if (!upd) return res.status(400).json({ message: 'ไม่มีฟิลด์ที่จะแก้ไข' });
+  upd.values.push(req.params.id);
 
-  for (const [key, val] of Object.entries(updates)) {
-    setClauses.push(`${toSnake(key)} = $${idx}`);
-    values.push(val);
-    idx++;
-  }
-  values.push(req.params.id);
-
-  await pool.query(`UPDATE person SET ${setClauses.join(', ')} WHERE person_id = $${idx}`, values);
+  await pool.query(`UPDATE person SET ${upd.setClauses.join(', ')} WHERE person_id = $${upd.nextIdx}`, upd.values);
   const { rows } = await pool.query('SELECT * FROM person WHERE person_id = $1', [req.params.id]);
+  if (!rows.length) return res.status(404).json({ message: 'Person not found' });
   res.json(rowToCamel(rows[0]));
 }));
 
-app.delete('/api/persons/:id', asyncHandler(async (req, res) => {
+app.delete('/api/persons/:id', validate([param('id').isInt()]), asyncHandler(async (req, res) => {
   await pool.query('DELETE FROM person WHERE person_id = $1', [req.params.id]);
   invalidateCache('persons');
   invalidateCache('all');
@@ -277,7 +319,10 @@ app.get('/api/persons/:id/contacts', asyncHandler(async (req, res) => {
   res.json(rowsToCamel(rows));
 }));
 
-app.post('/api/persons/:id/contacts', asyncHandler(async (req, res) => {
+app.post('/api/persons/:id/contacts', validate([
+  param('id').isInt(),
+  body('ContactType').trim().notEmpty().withMessage('ต้องระบุประเภทช่องทางติดต่อ'),
+]), asyncHandler(async (req, res) => {
   const { ContactType, ContactValue, IsActive, Notes } = req.body;
   const { rows } = await pool.query(`
     INSERT INTO person_contact (person_id, contact_type, contact_value, is_active, notes)
@@ -306,7 +351,23 @@ app.get('/api/locations', asyncHandler(async (_req, res) => {
   res.json(result);
 }));
 
-app.get('/api/locations/:id', asyncHandler(async (req, res) => {
+// Spatial query — locations within radius. MUST be registered before
+// '/:id' or Express matches "nearby" as an id and runs the wrong handler.
+app.get('/api/locations/nearby', asyncHandler(async (req, res) => {
+  const { lat, lng, radiusKm = 10 } = req.query;
+  const { rows } = await pool.query(`
+    SELECT location_id, address_detail,
+           ST_Y(geom) AS latitude, ST_X(geom) AS longitude,
+           province,
+           (ST_DistanceSphere(geom, ST_SetSRID(ST_MakePoint($2, $1), 4326)) / 1000) AS distance_km
+    FROM location
+    WHERE ST_DWithin(geom::geography, ST_SetSRID(ST_MakePoint($2, $1), 4326)::geography, $3 * 1000)
+    ORDER BY distance_km
+  `, [lat, lng, radiusKm]);
+  res.json(rowsToCamel(rows));
+}));
+
+app.get('/api/locations/:id', validate([param('id').isInt()]), asyncHandler(async (req, res) => {
   const { rows } = await pool.query(`
     SELECT location_id, address_detail,
            ST_Y(geom) AS latitude, ST_X(geom) AS longitude,
@@ -317,7 +378,9 @@ app.get('/api/locations/:id', asyncHandler(async (req, res) => {
   res.json(rowToCamel(rows[0]));
 }));
 
-app.post('/api/locations', asyncHandler(async (req, res) => {
+app.post('/api/locations', validate([
+  body('AddressDetail').trim().notEmpty().withMessage('ต้องระบุรายละเอียดที่อยู่'),
+]), asyncHandler(async (req, res) => {
   const { AddressDetail, LocationType,
           Province, District, SubDistrict, PostalCode } = req.body;
   let { Latitude, Longitude } = req.body;
@@ -344,27 +407,21 @@ app.post('/api/locations', asyncHandler(async (req, res) => {
   res.status(201).json(rowToCamel(rows[0]));
 }));
 
-app.put('/api/locations/:id', asyncHandler(async (req, res) => {
-  const { Latitude, Longitude, ...rest } = req.body;
-  const setClauses = [];
-  const values = [];
-  let idx = 1;
+app.put('/api/locations/:id', validate([param('id').isInt()]), asyncHandler(async (req, res) => {
+  const { Latitude, Longitude } = req.body;
+  const upd = buildUpdate(req.body, UPDATE_COLS.location) || { setClauses: [], values: [], nextIdx: 1 };
+  const { setClauses, values } = upd;
+  let idx = upd.nextIdx;
 
-  for (const [key, val] of Object.entries(rest)) {
-    setClauses.push(`${toSnake(key)} = $${idx}`);
-    values.push(val);
-    idx++;
-  }
   if (Latitude !== undefined && Longitude !== undefined) {
     setClauses.push(`geom = ST_SetSRID(ST_MakePoint($${idx}, $${idx + 1}), 4326)`);
     values.push(Longitude, Latitude);
     idx += 2;
   }
+  if (!setClauses.length) return res.status(400).json({ message: 'ไม่มีฟิลด์ที่จะแก้ไข' });
   values.push(req.params.id);
 
-  if (setClauses.length) {
-    await pool.query(`UPDATE location SET ${setClauses.join(', ')} WHERE location_id = $${idx}`, values);
-  }
+  await pool.query(`UPDATE location SET ${setClauses.join(', ')} WHERE location_id = $${idx}`, values);
 
   const { rows } = await pool.query(`
     SELECT location_id, address_detail,
@@ -375,24 +432,9 @@ app.put('/api/locations/:id', asyncHandler(async (req, res) => {
   res.json(rowToCamel(rows[0]));
 }));
 
-app.delete('/api/locations/:id', asyncHandler(async (req, res) => {
+app.delete('/api/locations/:id', validate([param('id').isInt().withMessage('id ต้องเป็นจำนวนเต็ม')]), asyncHandler(async (req, res) => {
   await pool.query('DELETE FROM location WHERE location_id = $1', [req.params.id]);
   res.json({ message: 'Location deleted' });
-}));
-
-// Spatial query — locations within radius
-app.get('/api/locations/nearby', asyncHandler(async (req, res) => {
-  const { lat, lng, radiusKm = 10 } = req.query;
-  const { rows } = await pool.query(`
-    SELECT location_id, address_detail,
-           ST_Y(geom) AS latitude, ST_X(geom) AS longitude,
-           province,
-           (ST_DistanceSphere(geom, ST_SetSRID(ST_MakePoint($2, $1), 4326)) / 1000) AS distance_km
-    FROM location
-    WHERE ST_DWithin(geom::geography, ST_SetSRID(ST_MakePoint($2, $1), 4326)::geography, $3 * 1000)
-    ORDER BY distance_km
-  `, [lat, lng, radiusKm]);
-  res.json(rowsToCamel(rows));
 }));
 
 // ============================================================
@@ -429,7 +471,9 @@ app.get('/api/cases/:id', asyncHandler(async (req, res) => {
   res.json(rowToCamel(rows[0]));
 }));
 
-app.post('/api/cases', asyncHandler(async (req, res) => {
+app.post('/api/cases', validate([
+  body('CaseType').trim().notEmpty().withMessage('ต้องระบุประเภทคดี'),
+]), asyncHandler(async (req, res) => {
   const {
     CaseNumber, CaseType, ArrestDate, LocationID, Status,
     Description, OfficerInCharge, CourtCaseNumber, Verdict
@@ -500,25 +544,18 @@ app.post('/api/cases/complete', asyncHandler(async (req, res) => {
   }
 }));
 
-app.put('/api/cases/:id', asyncHandler(async (req, res) => {
-  const updates = req.body;
-  const setClauses = [];
-  const values = [];
-  let idx = 1;
+app.put('/api/cases/:id', validate([param('id').isInt()]), asyncHandler(async (req, res) => {
+  const upd = buildUpdate(req.body, UPDATE_COLS.incident);
+  if (!upd) return res.status(400).json({ message: 'ไม่มีฟิลด์ที่จะแก้ไข' });
+  upd.values.push(req.params.id);
 
-  for (const [key, val] of Object.entries(updates)) {
-    setClauses.push(`${toSnake(key)} = $${idx}`);
-    values.push(val);
-    idx++;
-  }
-  values.push(req.params.id);
-
-  await pool.query(`UPDATE incident SET ${setClauses.join(', ')} WHERE case_id = $${idx}`, values);
+  await pool.query(`UPDATE incident SET ${upd.setClauses.join(', ')} WHERE case_id = $${upd.nextIdx}`, upd.values);
   const { rows } = await pool.query('SELECT * FROM incident WHERE case_id = $1', [req.params.id]);
+  if (!rows.length) return res.status(404).json({ message: 'Case not found' });
   res.json(rowToCamel(rows[0]));
 }));
 
-app.delete('/api/cases/:id', asyncHandler(async (req, res) => {
+app.delete('/api/cases/:id', validate([param('id').isInt()]), asyncHandler(async (req, res) => {
   await pool.query('DELETE FROM incident WHERE case_id = $1', [req.params.id]);
   res.json({ message: 'Case deleted' });
 }));
@@ -534,7 +571,10 @@ app.get('/api/cases/:id/persons', asyncHandler(async (req, res) => {
   res.json(rowsToCamel(rows));
 }));
 
-app.post('/api/cases/:id/persons', asyncHandler(async (req, res) => {
+app.post('/api/cases/:id/persons', validate([
+  param('id').isInt(),
+  body('personId').isInt().withMessage('personId ต้องเป็นจำนวนเต็ม'),
+]), asyncHandler(async (req, res) => {
   const { personId, role, involvementDetails } = req.body;
   await pool.query(`
     INSERT INTO case_person (case_id, person_id, role, involvement_details)
@@ -543,7 +583,7 @@ app.post('/api/cases/:id/persons', asyncHandler(async (req, res) => {
   res.status(201).json({ message: 'Person linked to case' });
 }));
 
-app.delete('/api/cases/:id/persons/:personId', asyncHandler(async (req, res) => {
+app.delete('/api/cases/:id/persons/:personId', validate([param('id').isInt(), param('personId').isInt()]), asyncHandler(async (req, res) => {
   await pool.query(
     'DELETE FROM case_person WHERE case_id = $1 AND person_id = $2',
     [req.params.id, req.params.personId]
@@ -559,7 +599,10 @@ app.get('/api/cases/:id/seizures', asyncHandler(async (req, res) => {
   res.json(rowsToCamel(rows));
 }));
 
-app.post('/api/cases/:id/seizures', asyncHandler(async (req, res) => {
+app.post('/api/cases/:id/seizures', validate([
+  param('id').isInt(),
+  body('DrugType').trim().notEmpty().withMessage('ต้องระบุชนิดยาเสพติด'),
+]), asyncHandler(async (req, res) => {
   const { DrugType, Quantity, Unit, EstimatedValue, StorageLocation, Notes } = req.body;
   const { rows } = await pool.query(`
     INSERT INTO drug_seizure (case_id, drug_type, quantity, unit,
@@ -590,7 +633,11 @@ app.get('/api/relationships', asyncHandler(async (_req, res) => {
   res.json(result);
 }));
 
-app.post('/api/relationships', asyncHandler(async (req, res) => {
+app.post('/api/relationships', validate([
+  body('Person1ID').isInt().withMessage('Person1ID ต้องเป็นจำนวนเต็ม'),
+  body('Person2ID').isInt().withMessage('Person2ID ต้องเป็นจำนวนเต็ม'),
+  body('RelationshipType').trim().notEmpty().withMessage('ต้องระบุประเภทความสัมพันธ์'),
+]), asyncHandler(async (req, res) => {
   const { Person1ID, Person2ID, RelationshipType, Strength, Evidence } = req.body;
   const { rows } = await pool.query(`
     INSERT INTO person_relationship (person1_id, person2_id, relationship_type, strength, evidence)
@@ -599,7 +646,7 @@ app.post('/api/relationships', asyncHandler(async (req, res) => {
   res.status(201).json(rowToCamel(rows[0]));
 }));
 
-app.delete('/api/relationships/:id', asyncHandler(async (req, res) => {
+app.delete('/api/relationships/:id', validate([param('id').isInt()]), asyncHandler(async (req, res) => {
   await pool.query('DELETE FROM person_relationship WHERE relationship_id = $1', [req.params.id]);
   res.json({ message: 'Relationship deleted' });
 }));
@@ -618,7 +665,10 @@ app.get('/api/person-locations', asyncHandler(async (_req, res) => {
   res.json(result);
 }));
 
-app.post('/api/person-locations', asyncHandler(async (req, res) => {
+app.post('/api/person-locations', validate([
+  body('PersonID').isInt().withMessage('PersonID ต้องเป็นจำนวนเต็ม'),
+  body('LocationID').isInt().withMessage('LocationID ต้องเป็นจำนวนเต็ม'),
+]), asyncHandler(async (req, res) => {
   const { PersonID, LocationID, LocationRole, IsPrimary, StartDate, EndDate } = req.body;
   const { rows } = await pool.query(`
     INSERT INTO person_location (person_id, location_id, location_role, is_primary, start_date, end_date)
@@ -631,44 +681,32 @@ app.post('/api/person-locations', asyncHandler(async (req, res) => {
 // CONTACT & SEIZURE CRUD (standalone)
 // ============================================================
 
-app.put('/api/contacts/:id', asyncHandler(async (req, res) => {
-  const updates = req.body;
-  const setClauses = [];
-  const values = [];
-  let idx = 1;
-  for (const [key, val] of Object.entries(updates)) {
-    setClauses.push(`${toSnake(key)} = $${idx}`);
-    values.push(val);
-    idx++;
-  }
-  values.push(req.params.id);
-  await pool.query(`UPDATE person_contact SET ${setClauses.join(', ')} WHERE contact_id = $${idx}`, values);
+app.put('/api/contacts/:id', validate([param('id').isInt()]), asyncHandler(async (req, res) => {
+  const upd = buildUpdate(req.body, UPDATE_COLS.contact);
+  if (!upd) return res.status(400).json({ message: 'ไม่มีฟิลด์ที่จะแก้ไข' });
+  upd.values.push(req.params.id);
+  await pool.query(`UPDATE person_contact SET ${upd.setClauses.join(', ')} WHERE contact_id = $${upd.nextIdx}`, upd.values);
   const { rows } = await pool.query('SELECT * FROM person_contact WHERE contact_id = $1', [req.params.id]);
+  if (!rows.length) return res.status(404).json({ message: 'Contact not found' });
   res.json(rowToCamel(rows[0]));
 }));
 
-app.delete('/api/contacts/:id', asyncHandler(async (req, res) => {
+app.delete('/api/contacts/:id', validate([param('id').isInt()]), asyncHandler(async (req, res) => {
   await pool.query('DELETE FROM person_contact WHERE contact_id = $1', [req.params.id]);
   res.json({ message: 'Contact deleted' });
 }));
 
-app.put('/api/seizures/:id', asyncHandler(async (req, res) => {
-  const updates = req.body;
-  const setClauses = [];
-  const values = [];
-  let idx = 1;
-  for (const [key, val] of Object.entries(updates)) {
-    setClauses.push(`${toSnake(key)} = $${idx}`);
-    values.push(val);
-    idx++;
-  }
-  values.push(req.params.id);
-  await pool.query(`UPDATE drug_seizure SET ${setClauses.join(', ')} WHERE seizure_id = $${idx}`, values);
+app.put('/api/seizures/:id', validate([param('id').isInt()]), asyncHandler(async (req, res) => {
+  const upd = buildUpdate(req.body, UPDATE_COLS.seizure);
+  if (!upd) return res.status(400).json({ message: 'ไม่มีฟิลด์ที่จะแก้ไข' });
+  upd.values.push(req.params.id);
+  await pool.query(`UPDATE drug_seizure SET ${upd.setClauses.join(', ')} WHERE seizure_id = $${upd.nextIdx}`, upd.values);
   const { rows } = await pool.query('SELECT * FROM drug_seizure WHERE seizure_id = $1', [req.params.id]);
+  if (!rows.length) return res.status(404).json({ message: 'Seizure not found' });
   res.json(rowToCamel(rows[0]));
 }));
 
-app.delete('/api/seizures/:id', asyncHandler(async (req, res) => {
+app.delete('/api/seizures/:id', validate([param('id').isInt()]), asyncHandler(async (req, res) => {
   await pool.query('DELETE FROM drug_seizure WHERE seizure_id = $1', [req.params.id]);
   res.json({ message: 'Seizure deleted' });
 }));
@@ -816,50 +854,60 @@ app.post('/api/upload/csv', upload.single('file'), asyncHandler(async (req, res)
           continue;
         }
 
-        // Create location
-        const { rows: [loc] } = await client.query(`
-          INSERT INTO location (address_detail, geom, location_type,
-            province, district, sub_district, postal_code)
-          VALUES ($1, ST_SetSRID(ST_MakePoint($3, $2), 4326), $4, $5, $6, $7, $8)
-          RETURNING location_id, ST_Y(geom) AS latitude, ST_X(geom) AS longitude,
-                    address_detail, province, district
-        `, [
-          row.address_detail || row.address || `Imported location #${i + 1}`,
-          lat, lng,
-          row.location_type || 'CrimeScene',
-          row.province || null,
-          row.district || null,
-          row.sub_district || null,
-          row.postal_code || null
-        ]);
+        // Per-row SAVEPOINT: on a DB error we roll back only this row, so a
+        // single bad row does not abort (and poison) the whole batch.
+        await client.query('SAVEPOINT row_sp');
+        try {
+          // Create location
+          const { rows: [loc] } = await client.query(`
+            INSERT INTO location (address_detail, geom, location_type,
+              province, district, sub_district, postal_code)
+            VALUES ($1, ST_SetSRID(ST_MakePoint($3, $2), 4326), $4, $5, $6, $7, $8)
+            RETURNING location_id, ST_Y(geom) AS latitude, ST_X(geom) AS longitude,
+                      address_detail, province, district
+          `, [
+            row.address_detail || row.address || `Imported location #${i + 1}`,
+            lat, lng,
+            row.location_type || 'CrimeScene',
+            row.province || null,
+            row.district || null,
+            row.sub_district || null,
+            row.postal_code || null
+          ]);
 
-        // Create incident
-        const caseNumber = row.case_number || row.title || `CSV-${Date.now()}-${i}`;
-        const { rows: [inc] } = await client.query(`
-          INSERT INTO incident (case_number, case_type, arrest_date, location_id,
-            status, description, officer_in_charge)
-          VALUES ($1,$2,$3,$4,$5,$6,$7)
-          RETURNING *
-        `, [
-          caseNumber,
-          row.case_type || row.type || 'Imported',
-          row.arrest_date || row.date || null,
-          loc.location_id,
-          row.status || 'Under Investigation',
-          row.description || null,
-          row.officer_in_charge || row.officer || null
-        ]);
+          // Create incident
+          const caseNumber = row.case_number || row.title || `CSV-${Date.now()}-${i}`;
+          const { rows: [inc] } = await client.query(`
+            INSERT INTO incident (case_number, case_type, arrest_date, location_id,
+              status, description, officer_in_charge)
+            VALUES ($1,$2,$3,$4,$5,$6,$7)
+            RETURNING *
+          `, [
+            caseNumber,
+            row.case_type || row.type || 'Imported',
+            row.arrest_date || row.date || null,
+            loc.location_id,
+            row.status || 'Under Investigation',
+            row.description || null,
+            row.officer_in_charge || row.officer || null
+          ]);
 
-        inserted.push({
-          ...rowToCamel(inc),
-          latitude: loc.latitude,
-          longitude: loc.longitude,
-          addressDetail: loc.address_detail,
-          province: loc.province,
-          district: loc.district,
-          geocoded,
-        });
-        if (geocoded) geocodedCount++;
+          await client.query('RELEASE SAVEPOINT row_sp');
+
+          inserted.push({
+            ...rowToCamel(inc),
+            latitude: loc.latitude,
+            longitude: loc.longitude,
+            addressDetail: loc.address_detail,
+            province: loc.province,
+            district: loc.district,
+            geocoded,
+          });
+          if (geocoded) geocodedCount++;
+        } catch (rowErr) {
+          await client.query('ROLLBACK TO SAVEPOINT row_sp');
+          errors.push({ row: i + 2, message: rowErr.message });
+        }
       } catch (rowErr) {
         errors.push({ row: i + 2, message: rowErr.message });
       }
@@ -896,7 +944,7 @@ app.get('/api/all', asyncHandler(async (_req, res) => {
   const cached = cachedQuery('all:data');
   if (cached) return res.json(cached);
 
-  const [personsQ, casesQ, locationsQ, relationshipsQ, personLocationsQ] = await Promise.all([
+  const [personsQ, casesQ, locationsQ, relationshipsQ, personLocationsQ, personCasesQ, seizuresQ] = await Promise.all([
     pool.query(`
       SELECT p.*, pl.location_id AS current_address_id
       FROM person p
@@ -922,6 +970,8 @@ app.get('/api/all', asyncHandler(async (_req, res) => {
       JOIN person p2 ON pr.person2_id = p2.person_id
     `),
     pool.query('SELECT * FROM person_location ORDER BY person_id'),
+    pool.query('SELECT * FROM case_person ORDER BY case_id'),
+    pool.query('SELECT * FROM drug_seizure ORDER BY case_id'),
   ]);
 
   const result = {
@@ -930,6 +980,8 @@ app.get('/api/all', asyncHandler(async (_req, res) => {
     locations: rowsToCamel(locationsQ.rows),
     relationships: rowsToCamel(relationshipsQ.rows),
     personLocations: rowsToCamel(personLocationsQ.rows),
+    personCases: rowsToCamel(personCasesQ.rows),
+    drugSeizures: rowsToCamel(seizuresQ.rows),
   };
   setCache('all:data', result);
   res.json(result);
@@ -956,7 +1008,8 @@ app.get('/api/health', asyncHandler(async (_req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (err) {
-    res.json({
+    // Pool/DB unreachable → 503 so load balancers and uptime checks see it.
+    res.status(503).json({
       status: 'degraded',
       database: 'disconnected',
       error: err.message,
@@ -966,14 +1019,23 @@ app.get('/api/health', asyncHandler(async (_req, res) => {
 }));
 
 // ============================================================
-// ERROR HANDLER
+// 404 — no route matched
+// ============================================================
+app.use('/api', (_req, res) => {
+  res.status(404).json({ message: 'ไม่พบเส้นทาง API ที่ร้องขอ (Not found)' });
+});
+
+// ============================================================
+// ERROR HANDLER — map driver/validation/upload errors to real status codes
 // ============================================================
 
 app.use((err, _req, res, _next) => {
-  console.error('Error:', err);
-  res.status(500).json({
-    message: err.message || 'Internal server error',
-    ...(process.env.NODE_ENV !== 'production' && { stack: err.stack })
+  const { status, message, expose } = mapError(err);
+  if (status >= 500) console.error('Error:', err);
+  res.status(status).json({
+    message,
+    ...(expose && err.errors ? { errors: err.errors } : {}),
+    ...(status >= 500 && process.env.NODE_ENV !== 'production' && { detail: err.message, stack: err.stack }),
   });
 });
 
