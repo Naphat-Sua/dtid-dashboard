@@ -357,15 +357,17 @@ const CrimeMap = ({ flyToLocation, showHeatmap = true, onMarkerClick }) => {
     schools: false,
     tambonCentroids: false,
     policeStations: false,
+    markets: false,
     roads: false,
     provinces: true,
     amphoe: false,
-    forests: false
+    forests: false,
+    tambon: true
   });
   
-  // Center on อ.สามพราน จ.นครปฐม (study area)
-  const defaultCenter = [13.72, 100.22];
-  const defaultZoom = 12;
+  // Center on อ.สามพราน จ.นครปฐม (study area) — whole district in one view
+  const defaultCenter = [13.726, 100.233];
+  const defaultZoom = 13;
 
   // Load GIS layers on mount
   useEffect(() => {
@@ -739,6 +741,7 @@ const CrimeMap = ({ flyToLocation, showHeatmap = true, onMarkerClick }) => {
             { id: 'kde', label: 'KDE Surface', icon: '📊', desc: 'True kernel density' },
             { id: 'hotspot', label: 'Gi* Hotspot', icon: '📍', desc: 'Statistical clusters' },
             { id: 'all', label: 'All Layers', icon: '🗺️', desc: 'Combined view' },
+            { id: 'none', label: 'Base Map', icon: '🧭', desc: 'Markers only — no analysis overlay' },
           ].map(mode => (
             <button
               key={mode.id}
@@ -778,7 +781,7 @@ const CrimeMap = ({ flyToLocation, showHeatmap = true, onMarkerClick }) => {
       </div>
 
       {/* ── Analysis Controls — parameter sliders + stats + methodology ── */}
-      {vizMode !== 'heatmap' && (
+      {vizMode !== 'heatmap' && vizMode !== 'none' && (
         <AnalysisControls
           params={analysisParams}
           onParamsChange={setAnalysisParams}
@@ -894,6 +897,69 @@ const CrimeMap = ({ flyToLocation, showHeatmap = true, onMarkerClick }) => {
                 <div className="w-3 h-3 rounded-full bg-blue-900"></div>
                 <span style={{ color: 'var(--text-secondary)' }}>Coldspot 99% CI (Z≤-2.58)</span>
               </div>
+            </div>
+          </div>
+        )}
+
+        {showCorridors && (
+          <div className="mt-3 pt-2" style={{ borderTop: '1px solid var(--border-default)' }}>
+            <p className="text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
+              เส้นทางลำเลียง (Corridors)
+            </p>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 text-[10px]">
+                <div className="w-5 h-[4px] rounded-full" style={{ background: '#ef4444' }}></div>
+                <span style={{ color: 'var(--text-secondary)' }}>ความถี่การใช้สูง</span>
+              </div>
+              <div className="flex items-center gap-2 text-[10px]">
+                <div className="w-5 h-[3px] rounded-full" style={{ background: '#f97316' }}></div>
+                <span style={{ color: 'var(--text-secondary)' }}>ปานกลาง</span>
+              </div>
+              <div className="flex items-center gap-2 text-[10px]">
+                <div className="w-5 h-[2px] rounded-full" style={{ background: '#fbbf24' }}></div>
+                <span style={{ color: 'var(--text-secondary)' }}>ต่ำ</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {(visibleGISLayers.tambon || visibleGISLayers.roads || visibleGISLayers.schools ||
+          visibleGISLayers.markets || visibleGISLayers.forests) && (
+          <div className="mt-3 pt-2" style={{ borderTop: '1px solid var(--border-default)' }}>
+            <p className="text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
+              GIS Layers
+            </p>
+            <div className="space-y-1">
+              {visibleGISLayers.tambon && (
+                <div className="flex items-center gap-2 text-[10px]">
+                  <div className="w-5 h-[2px]" style={{ background: 'repeating-linear-gradient(90deg,#cbd5e1,#cbd5e1 4px,transparent 4px,transparent 8px)' }}></div>
+                  <span style={{ color: 'var(--text-secondary)' }}>ขอบเขตตำบล</span>
+                </div>
+              )}
+              {visibleGISLayers.roads && (
+                <div className="flex items-center gap-2 text-[10px]">
+                  <div className="w-5 h-[2px] rounded-full" style={{ background: '#f59e0b' }}></div>
+                  <span style={{ color: 'var(--text-secondary)' }}>โครงข่ายถนนหลัก</span>
+                </div>
+              )}
+              {visibleGISLayers.schools && (
+                <div className="flex items-center gap-2 text-[10px]">
+                  <div className="w-3 h-3 rounded-full" style={{ background: '#3b82f6', border: '1px solid #fff' }}></div>
+                  <span style={{ color: 'var(--text-secondary)' }}>สถานศึกษา</span>
+                </div>
+              )}
+              {visibleGISLayers.markets && (
+                <div className="flex items-center gap-2 text-[10px]">
+                  <div className="w-3 h-3 rounded-full" style={{ background: '#22c55e', border: '1px solid #fff' }}></div>
+                  <span style={{ color: 'var(--text-secondary)' }}>ตลาด/แหล่งชุมชน</span>
+                </div>
+              )}
+              {visibleGISLayers.forests && (
+                <div className="flex items-center gap-2 text-[10px]">
+                  <div className="w-3 h-3 rounded-sm" style={{ background: 'rgba(5,150,105,0.5)', border: '1px solid #047857' }}></div>
+                  <span style={{ color: 'var(--text-secondary)' }}>พื้นที่ป่า/สวนสาธารณะ</span>
+                </div>
+              )}
             </div>
           </div>
         )}

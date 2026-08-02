@@ -20,6 +20,7 @@ const GISLayerControl = ({ onLayerToggle, visibleLayers: externalVisibleLayers }
     schools: false,
     tambonCentroids: false,
     policeStations: false,
+    markets: false,
 
     // Line layers
     roads: false,
@@ -27,7 +28,8 @@ const GISLayerControl = ({ onLayerToggle, visibleLayers: externalVisibleLayers }
     // Polygon layers
     provinces: true,
     amphoe: false,
-    forests: false
+    forests: false,
+    tambon: true
   });
 
   // Derived visibility (no prop→state sync effect): parent state overrides
@@ -75,6 +77,13 @@ const GISLayerControl = ({ onLayerToggle, visibleLayers: externalVisibleLayers }
       color: '#3b82f6',
       description: 'Thai police stations + jurisdiction'
     },
+    markets: {
+      name: 'Markets & Communities',
+      type: 'point',
+      icon: MapPin,
+      color: '#22c55e',
+      description: 'Markets and community hubs'
+    },
     
     // Line Layers
     roads: {
@@ -106,6 +115,13 @@ const GISLayerControl = ({ onLayerToggle, visibleLayers: externalVisibleLayers }
       icon: Square,
       color: '#059669',
       description: 'National reserved forest areas'
+    },
+    tambon: {
+      name: 'Tambon Boundaries',
+      type: 'polygon',
+      icon: Square,
+      color: '#cbd5e1',
+      description: 'Sam Phran subdistrict boundaries (dashed)'
     }
   };
 
@@ -276,6 +292,15 @@ export const GISLayers = ({ gisLayers, visibleLayers }) => {
         weight: 1,
         opacity: 0.6,
         renderer: canvasRenderer
+      },
+      tambon: {
+        fillColor: '#94a3b8',
+        fillOpacity: 0.03,
+        color: '#cbd5e1',
+        weight: 1.5,
+        opacity: 0.9,
+        dashArray: '6,6',
+        renderer: canvasRenderer
       }
     };
     return styles[layerType] || styles.provinces;
@@ -366,7 +391,7 @@ export const GISLayers = ({ gisLayers, visibleLayers }) => {
         style={getPolygonStyle(layerKey)}
         onEachFeature={(feature, layer) => {
           const properties = feature.properties || {};
-          const name = properties.ADM1_EN || properties.ADM2_EN || properties.PROV_NAM_E || 
+          const name = properties.TAMBON_T || properties.ADM1_EN || properties.ADM2_EN || properties.PROV_NAM_E || 
                        properties.NAME || properties.name || 'Feature';
           layer.bindPopup(`<div style="font-weight:600;">${name}</div>`);
         }}
@@ -401,12 +426,16 @@ export const GISLayers = ({ gisLayers, visibleLayers }) => {
         renderPointLayer(gisLayers.points.schools.features, 'schools', '#3b82f6')}
       {gisLayers.points?.tambonCentroids && 
         renderPointLayer(gisLayers.points.tambonCentroids.features, 'tambonCentroids', '#8b5cf6')}
+      {gisLayers.points?.markets &&
+        renderPointLayer(gisLayers.points.markets.features, 'markets', '#22c55e')}
 
       {/* Line Layers */}
       {gisLayers.lines?.roads && 
         renderLineLayer(gisLayers.lines.roads, 'roads')}
 
       {/* Polygon Layers — provinces handled by ProvinceLayer in CrimeMap */}
+      {gisLayers.polygons?.tambon &&
+        renderPolygonLayer(gisLayers.polygons.tambon, 'tambon')}
       {gisLayers.polygons?.amphoe && 
         renderPolygonLayer(gisLayers.polygons.amphoe, 'amphoe')}
       {gisLayers.polygons?.forests && 
