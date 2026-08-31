@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { GeoJSON, Marker, Popup, Polyline, Polygon, CircleMarker, useMap } from 'react-leaflet';
+import React, { useState, useMemo } from 'react';
+import { GeoJSON, Marker, Popup, Polyline, Polygon, CircleMarker } from 'react-leaflet';
 import L from 'leaflet';
 import { Layers, Eye, EyeOff, MapPin, Route, Square, AlertCircle } from 'lucide-react';
 
@@ -12,44 +12,44 @@ const MAX_POLYGONS = 200;
  * GIS Layer Control Component
  * Manages point, line, and polygon layers from shapefiles
  */
-const GISLayerControl = ({ gisLayers, onLayerToggle, visibleLayers: externalVisibleLayers }) => {
-  
-  // Layer visibility state — synced from parent when provided
-  const [visibleLayers, setVisibleLayers] = useState({
+const GISLayerControl = ({ onLayerToggle, visibleLayers: externalVisibleLayers }) => {
+
+  // Internal defaults; the parent's externalVisibleLayers wins for known keys.
+  const [internalLayers, setInternalLayers] = useState({
     // Point layers
     schools: false,
     tambonCentroids: false,
     policeStations: false,
-    
+    markets: false,
+
     // Line layers
     roads: false,
-    
+
     // Polygon layers
     provinces: true,
     amphoe: false,
-    forests: false
+    forests: false,
+    tambon: true
   });
 
-  // Sync with parent state (for mutual-exclusion base layer toggle)
-  useEffect(() => {
-    if (externalVisibleLayers) {
-      setVisibleLayers(prev => {
-        const next = { ...prev };
-        for (const key of Object.keys(externalVisibleLayers)) {
-          if (key in next) next[key] = externalVisibleLayers[key];
-        }
-        return next;
-      });
+  // Derived visibility (no prop→state sync effect): parent state overrides
+  // internal for any key it provides.
+  const visibleLayers = useMemo(() => {
+    if (!externalVisibleLayers) return internalLayers;
+    const merged = { ...internalLayers };
+    for (const key of Object.keys(externalVisibleLayers)) {
+      if (key in merged) merged[key] = externalVisibleLayers[key];
     }
-  }, [externalVisibleLayers]);
+    return merged;
+  }, [internalLayers, externalVisibleLayers]);
 
   const [isExpanded, setIsExpanded] = useState(false);
 
   const toggleLayer = (layerName) => {
-    const newState = { ...visibleLayers, [layerName]: !visibleLayers[layerName] };
-    setVisibleLayers(newState);
+    const next = !visibleLayers[layerName];
+    setInternalLayers(prev => ({ ...prev, [layerName]: next }));
     if (onLayerToggle) {
-      onLayerToggle(layerName, newState[layerName]);
+      onLayerToggle(layerName, next);
     }
   };
 
@@ -76,6 +76,13 @@ const GISLayerControl = ({ gisLayers, onLayerToggle, visibleLayers: externalVisi
       icon: AlertCircle,
       color: '#3b82f6',
       description: 'Thai police stations + jurisdiction'
+    },
+    markets: {
+      name: 'Markets & Communities',
+      type: 'point',
+      icon: MapPin,
+      color: '#22c55e',
+      description: 'Markets and community hubs'
     },
     
     // Line Layers
@@ -108,6 +115,13 @@ const GISLayerControl = ({ gisLayers, onLayerToggle, visibleLayers: externalVisi
       icon: Square,
       color: '#059669',
       description: 'National reserved forest areas'
+    },
+    tambon: {
+      name: 'Tambon Boundaries',
+      type: 'polygon',
+      icon: Square,
+      color: '#cbd5e1',
+      description: 'Sam Phran subdistrict boundaries (dashed)'
     }
   };
 
@@ -247,15 +261,8 @@ const LayerToggleButton = ({ layerKey, layer, isVisible, onToggle }) => {
  * Uses Canvas rendering and feature limits for large datasets
  */
 export const GISLayers = ({ gisLayers, visibleLayers }) => {
-  const map = useMap();
-  const canvasRendererRef = useRef(null);
-
-  // Create canvas renderer for better performance
-  useEffect(() => {
-    if (!canvasRendererRef.current) {
-      canvasRendererRef.current = L.canvas({ padding: 0.5 });
-    }
-  }, []);
+  // Stable canvas renderer (memoized so it's readable during render without a ref).
+  const canvasRenderer = useMemo(() => L.canvas({ padding: 0.5 }), []);
 
   if (!gisLayers) return null;
 
@@ -268,7 +275,7 @@ export const GISLayers = ({ gisLayers, visibleLayers }) => {
         color: '#059669',
         weight: 2,
         opacity: 0.8,
-        renderer: canvasRendererRef.current
+        renderer: canvasRenderer
       },
       amphoe: {
         fillColor: '#0ea5e9',
@@ -276,7 +283,7 @@ export const GISLayers = ({ gisLayers, visibleLayers }) => {
         color: '#0284c7',
         weight: 1.5,
         opacity: 0.7,
-        renderer: canvasRendererRef.current
+        renderer: canvasRenderer
       },
       forests: {
         fillColor: '#059669',
@@ -284,7 +291,16 @@ export const GISLayers = ({ gisLayers, visibleLayers }) => {
         color: '#047857',
         weight: 1,
         opacity: 0.6,
-        renderer: canvasRendererRef.current
+        renderer: canvasRenderer
+      },
+      tambon: {
+        fillColor: '#94a3b8',
+        fillOpacity: 0.03,
+        color: '#cbd5e1',
+        weight: 1.5,
+        opacity: 0.9,
+        dashArray: '6,6',
+        renderer: canvasRenderer
       }
     };
     return styles[layerType] || styles.provinces;
@@ -297,7 +313,7 @@ export const GISLayers = ({ gisLayers, visibleLayers }) => {
         color: '#f59e0b',
         weight: 2,
         opacity: 0.7,
-        renderer: canvasRendererRef.current
+        renderer: canvasRenderer
       }
     };
     return styles[layerType] || styles.roads;
@@ -375,7 +391,7 @@ export const GISLayers = ({ gisLayers, visibleLayers }) => {
         style={getPolygonStyle(layerKey)}
         onEachFeature={(feature, layer) => {
           const properties = feature.properties || {};
-          const name = properties.ADM1_EN || properties.ADM2_EN || properties.PROV_NAM_E || 
+          const name = properties.TAMBON_T || properties.ADM1_EN || properties.ADM2_EN || properties.PROV_NAM_E || 
                        properties.NAME || properties.name || 'Feature';
           layer.bindPopup(`<div style="font-weight:600;">${name}</div>`);
         }}
@@ -410,12 +426,16 @@ export const GISLayers = ({ gisLayers, visibleLayers }) => {
         renderPointLayer(gisLayers.points.schools.features, 'schools', '#3b82f6')}
       {gisLayers.points?.tambonCentroids && 
         renderPointLayer(gisLayers.points.tambonCentroids.features, 'tambonCentroids', '#8b5cf6')}
+      {gisLayers.points?.markets &&
+        renderPointLayer(gisLayers.points.markets.features, 'markets', '#22c55e')}
 
       {/* Line Layers */}
       {gisLayers.lines?.roads && 
         renderLineLayer(gisLayers.lines.roads, 'roads')}
 
       {/* Polygon Layers — provinces handled by ProvinceLayer in CrimeMap */}
+      {gisLayers.polygons?.tambon &&
+        renderPolygonLayer(gisLayers.polygons.tambon, 'tambon')}
       {gisLayers.polygons?.amphoe && 
         renderPolygonLayer(gisLayers.polygons.amphoe, 'amphoe')}
       {gisLayers.polygons?.forests && 

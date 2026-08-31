@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { dbService } from '../services/dbService';
+import { normalizeAllData } from '../utils/normalizeApi';
 
 // ── Mock data is now lazy-loaded, not statically imported ──
 // This removes ~30 KB from the initial bundle.  The mock arrays
@@ -59,6 +60,10 @@ export const useAuthStore = create(
         try {
           const { user } = await dbService.login(username, password);
           set({ user, refreshToken: dbService.refreshToken, isDemo: false, isAuthenticated: true, isAuthLoading: false });
+          // A real backend session issued tokens → switch to live DB mode and
+          // hydrate from the server. Failure here is logged, not fatal to login.
+          await useDataStore.getState().enterDbMode().catch((err) =>
+            console.error('Initial database load failed:', err));
           return true;
         } catch (e) {
           set({ authError: e.message || 'เข้าสู่ระบบไม่สำเร็จ', isAuthLoading: false, isAuthenticated: false });
@@ -73,12 +78,17 @@ export const useAuthStore = create(
           user: { userId: null, username: role.toLowerCase(), fullName: DEMO_NAMES[role] || role, role },
           refreshToken: null, isDemo: true, isAuthenticated: true, authError: null,
         });
+        // Guarantee the canonical mock dataset in LOCAL mode.
+        useDataStore.getState().enterLocalMode().catch(() => {});
       },
 
       logout: () => {
         if (!get().isDemo) dbService.logout();
         else dbService.clearAuth();
         set({ user: null, refreshToken: null, isDemo: false, isAuthenticated: false, authError: null });
+        // Reset to the LOCAL demo dataset so a later demo login is clean and any
+        // fetched DB data does not linger.
+        useDataStore.getState().enterLocalMode().catch(() => {});
       },
 
       // Restore a real backend session at startup using the persisted refresh token.
@@ -88,6 +98,9 @@ export const useAuthStore = create(
           dbService.setRefreshToken(get().refreshToken);
           const { user } = await dbService.refresh();
           set({ user, refreshToken: dbService.refreshToken, isAuthenticated: true });
+          // Restored a live session → re-enter DB mode and hydrate.
+          await useDataStore.getState().enterDbMode().catch((err) =>
+            console.error('Database load on session restore failed:', err));
         } catch {
           set({ user: null, refreshToken: null, isAuthenticated: false });
         }
@@ -652,52 +665,42 @@ export const useDataStore = create(
       // ============================================================
       // Database Sync Operations
       // ============================================================
-      loadFromDatabase: async () => {
-        set({ isLoading: true, lastError: null });
-        try {
-          const [persons, cases, locations, seizures, relationships] = await Promise.all([
-            dbService.getPersons(),
-            dbService.getCases(),
-            dbService.getLocations(),
-            dbService.getSeizuresForCase('all'),
-            dbService.getRelationships()
-          ]);
+      // Switch to live DB mode and hydrate the store from the backend.
+      // Called on a successful real (non-demo) login / session restore.
+      enterDbMode: async () => {
+        set({ dbMode: DB_MODE.SYNC });
+        return get().refreshFromDatabase();
+      },
 
-          set({
-            persons,
-            cases,
-            locations,
-            drugSeizures: seizures,
-            personNetwork: relationships,
-            isLoading: false
-          });
-        } catch (error) {
-          console.error('Failed to load data from database:', error);
-          set({ isLoading: false, lastError: error.message });
-          throw error;
-        }
+      // Return to LOCAL (demo) mode with the canonical mock dataset. Called on
+      // demo login and on logout so a demo session never shows leftover DB data.
+      enterLocalMode: async () => {
+        set({ dbMode: DB_MODE.LOCAL });
+        return get().resetData();
+      },
+
+      loadFromDatabase: async () => {
+        // Single-round-trip aggregate load (kept for API compatibility).
+        return get().refreshFromDatabase();
       },
 
       /**
-       * Refresh all data from the PostgreSQL/PostGIS database.
-       * Called after CSV import or any external data change.
-       * Maps DB snake_case keys (already camelCased by the API) to store fields.
+       * Refresh all data from the PostgreSQL/PostGIS database via /api/all.
+       * The API returns camelCase (personId, photoUrl, status); normalizeAllData
+       * maps it to the PascalCase shape the store and components use
+       * (PersonID, PhotoURL, Status) — without this the UI reads undefined.
        */
       refreshFromDatabase: async () => {
         set({ isLoading: true, lastError: null });
         try {
-          const data = await dbService.fetchAllData();
-
-          // Map API field names → store field names
-          // The API returns camelCase: personId, caseId, etc.
-          // The store expects PascalCase: PersonID, CaseID, etc. (from mockData)
-          // The camelCase→PascalCase mapping is handled naturally because
-          // both the store and API use the same key names now.
+          const data = normalizeAllData(await dbService.fetchAllData());
 
           set({
             persons: data.persons || [],
             cases: data.cases || [],
             locations: data.locations || [],
+            drugSeizures: data.drugSeizures || [],
+            personCases: data.personCases || [],
             personNetwork: data.relationships || [],
             personLocations: data.personLocations || [],
             isLoading: false,
@@ -767,7 +770,9 @@ export const useDataStore = create(
         personNetwork: state.personNetwork,
         personContacts: state.personContacts,
         personLocations: state.personLocations,
-        dbMode: state.dbMode
+        // dbMode is intentionally NOT persisted — it always starts LOCAL and is
+        // set explicitly by login (SYNC) / demo-login / logout (LOCAL), so a
+        // reload never lands in SYNC mode without a live authenticated session.
       }),
       // When localStorage is empty (first visit or version bump),
       // automatically seed the store with mock data.

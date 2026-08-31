@@ -135,13 +135,15 @@ function computeNetworkMetrics(nodes, links) {
 // ======================================================
 //  Leaflet helpers
 // ======================================================
-const createPersonIcon = (person, subordinateCount, isSelected, riskLevel) => {
+const createPersonIcon = (person, subordinateCount, isSelected, riskLevel, betweenness = 0) => {
   const risk = RISK_COLORS[riskLevel] || RISK_COLORS['Low'];
   let emoji = '\u{1F464}';
   if (person.Status === 'Arrested') emoji = '\u26D3\uFE0F';
   else if (subordinateCount > 2) emoji = '\u{1F451}';
   else if (subordinateCount > 0) emoji = '\u2B50';
-  const size = 36 + Math.min(subordinateCount * 5, 20);
+  // Size scales primarily with betweenness centrality so the system's
+  // computed key persons are visually prominent on the map.
+  const size = 34 + Math.min(Math.round(betweenness * 220), 26) + Math.min(subordinateCount * 2, 8);
   const borderColor = isSelected ? '#fbbf24' : 'rgba(255,255,255,0.85)';
   const borderWidth = isSelected ? 3 : 2;
   const glowShadow = isSelected ? `,0 0 0 5px ${risk.ring}, 0 0 18px ${risk.ring}` : '';
@@ -155,7 +157,7 @@ const createPersonIcon = (person, subordinateCount, isSelected, riskLevel) => {
 const FitBounds = ({ positions }) => {
   const map = useMap();
   useEffect(() => {
-    if (positions.length) map.fitBounds(L.latLngBounds(positions), { padding: [60, 60], maxZoom: 10 });
+    if (positions.length) map.fitBounds(L.latLngBounds(positions), { padding: [60, 60], maxZoom: 14 });
   }, [map, positions]);
   return null;
 };
@@ -163,7 +165,7 @@ const FitBounds = ({ positions }) => {
 // ======================================================
 //  SVG Overlay - Curved Connection Lines on Map
 // ======================================================
-const SVGConnectionOverlay = ({ links, personPositions, highlightPersonId, selectedPersonId, onLinkHover, hoveredLinkIdx, theme }) => {
+const SVGConnectionOverlay = ({ links, personPositions, highlightPersonId, selectedPersonId, onLinkHover, hoveredLinkIdx, selectedLinkIdx, onLinkSelect, nodesById, theme }) => {
   const map = useMap();
   const svgRef = useRef(null);
   const [, setTick] = useState(0);
@@ -171,7 +173,13 @@ const SVGConnectionOverlay = ({ links, personPositions, highlightPersonId, selec
   useEffect(() => {
     const handler = () => setTick(t => t + 1);
     map.on('move zoom viewreset moveend zoomend', handler);
-    return () => map.off('move zoom viewreset moveend zoomend', handler);
+    // Re-project once after mount: FitBounds may have already moved the map
+    // before this listener attached, leaving the lines drawn for a stale view.
+    const raf = requestAnimationFrame(handler);
+    return () => {
+      cancelAnimationFrame(raf);
+      map.off('move zoom viewreset moveend zoomend', handler);
+    };
   }, [map]);
 
   const project = useCallback((latlng) => {
@@ -288,7 +296,8 @@ const SVGConnectionOverlay = ({ links, personPositions, highlightPersonId, selec
               strokeWidth={Math.max(lineWidth + 12, 18)}
               style={{ pointerEvents: 'stroke', cursor: 'pointer' }}
               onMouseEnter={() => onLinkHover(idx)}
-              onMouseLeave={() => onLinkHover(null)} />
+              onMouseLeave={() => onLinkHover(null)}
+              onClick={(e) => { e.stopPropagation(); onLinkSelect?.(selectedLinkIdx === idx ? null : idx); }} />
 
             {/* Main visible curved path */}
             <path d={curve.path} fill="none" stroke={cfg.color}
@@ -330,6 +339,66 @@ const SVGConnectionOverlay = ({ links, personPositions, highlightPersonId, selec
           </g>
         );
       })}
+
+      {/* Evidence popup — opened by clicking a connection line */}
+      {selectedLinkIdx != null && (() => {
+        const link = links[selectedLinkIdx];
+        if (!link) return null;
+        const srcLatLng = personPositions[link.source];
+        const tgtLatLng = personPositions[link.target];
+        if (!srcLatLng || !tgtLatLng) return null;
+        const cfg = RELATIONSHIP_CONFIG[link.type] || { color: '#3b82f6', label: link.type, icon: '\u{1F517}' };
+        const strCfg = STRENGTH_CONFIG[link.strength] || STRENGTH_CONFIG['Medium'];
+        const edgeIdx = edgeIndexMap[selectedLinkIdx] || 0;
+        const curve = buildCurvedPath(srcLatLng, tgtLatLng, edgeIdx);
+        const W = 320, H = 190;
+        const x = Math.min(Math.max(curve.midX - W / 2, 8), Math.max(mapSize.x - W - 8, 8));
+        const y = curve.midY - H - 12 > 8 ? curve.midY - H - 12 : curve.midY + 12;
+        const srcNode = nodesById?.[link.source];
+        const tgtNode = nodesById?.[link.target];
+        const personLabel = (n, id) => n ? `${n.name}${n.alias ? ` (${n.alias})` : ''}` : `#${id}`;
+        const isDark = theme === 'dark';
+        return (
+          <foreignObject x={x} y={y} width={W} height={H} style={{ pointerEvents: 'auto', overflow: 'visible' }}>
+            <div style={{
+              width: `${W - 4}px`, borderRadius: '14px', padding: '12px 14px',
+              background: isDark ? 'rgba(18,18,28,0.94)' : 'rgba(255,255,255,0.97)',
+              border: `1.5px solid ${cfg.color}`,
+              boxShadow: '0 12px 32px rgba(0,0,0,0.35)',
+              fontFamily: 'inherit',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                <span style={{ fontSize: '11px', fontWeight: 700, color: cfg.color }}>
+                  {`${cfg.icon || '\u{1F517}'} หลักฐานความสัมพันธ์ — ${cfg.label || link.type}`}
+                </span>
+                <button onClick={() => onLinkSelect?.(null)} aria-label="ปิดหลักฐานความสัมพันธ์"
+                  style={{ border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '12px', fontWeight: 700, color: isDark ? 'rgba(255,255,255,0.55)' : 'rgba(0,0,0,0.45)' }}>
+                  ✕
+                </button>
+              </div>
+              <div style={{ fontSize: '12px', fontWeight: 600, color: isDark ? '#fff' : '#111', lineHeight: 1.5 }}>
+                {personLabel(srcNode, link.source)}
+                <span style={{ color: cfg.color, margin: '0 6px' }}>→</span>
+                {personLabel(tgtNode, link.target)}
+              </div>
+              <div style={{ marginTop: '6px', display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '8px', background: `${cfg.color}22`, color: cfg.color }}>
+                  {cfg.label || link.type}
+                </span>
+                <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '8px',
+                  background: link.strength === 'Strong' ? 'rgba(48,209,88,0.15)' : link.strength === 'Weak' ? 'rgba(255,69,58,0.15)' : 'rgba(255,204,0,0.15)',
+                  color: link.strength === 'Strong' ? '#30d158' : link.strength === 'Weak' ? '#ff453a' : '#d4a017' }}>
+                  {`ระดับความแน่นแฟ้น: ${strCfg.label}`}
+                </span>
+              </div>
+              <p style={{ marginTop: '8px', fontSize: '11px', lineHeight: 1.55, maxHeight: '84px', overflowY: 'auto',
+                color: isDark ? 'rgba(255,255,255,0.78)' : 'rgba(0,0,0,0.7)' }}>
+                {link.description || 'ไม่มีบันทึกหลักฐานประกอบ'}
+              </p>
+            </div>
+          </foreignObject>
+        );
+      })()}
     </svg>
   );
 };
@@ -356,6 +425,7 @@ const NetworkGraph = ({ onPersonSelect, selectedPersonId }) => {
   const [selectedNode, setSelectedNode] = useState(null);
   const [hoveredPersonId, setHoveredPersonId] = useState(null);
   const [hoveredLinkIdx, setHoveredLinkIdx] = useState(null);
+  const [selectedLinkKey, setSelectedLinkKey] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [filterRisk, setFilterRisk] = useState('all');
@@ -410,6 +480,19 @@ const NetworkGraph = ({ onPersonSelect, selectedPersonId }) => {
   }, [allNodes, allLinks, filterType, filterRisk, filterStatus, searchQuery]);
 
   const metrics = useMemo(() => computeNetworkMetrics(nodes, links), [nodes, links]);
+  const nodesById = useMemo(() => Object.fromEntries(nodes.map(n => [n.id, n])), [nodes]);
+
+  // Evidence popup selection is tracked by a stable link key, so a changed
+  // filter set simply resolves to "no selection" instead of a stale index.
+  const linkKeyOf = (l) => `${l.source}-${l.target}-${l.type}`;
+  const selectedLinkIdx = useMemo(() => {
+    if (selectedLinkKey == null) return null;
+    const i = links.findIndex((l) => linkKeyOf(l) === selectedLinkKey);
+    return i === -1 ? null : i;
+  }, [links, selectedLinkKey]);
+  const handleLinkSelect = useCallback((idx) => {
+    setSelectedLinkKey(idx == null || !links[idx] ? null : linkKeyOf(links[idx]));
+  }, [links]);
 
   const getConnectedIds = useCallback((pid) => { const s = new Set([pid]); links.forEach(l => { if (l.source === pid) s.add(l.target); if (l.target === pid) s.add(l.source); }); return s; }, [links]);
   const highlightedIds = hoveredPersonId ? getConnectedIds(hoveredPersonId) : null;
@@ -444,7 +527,9 @@ const NetworkGraph = ({ onPersonSelect, selectedPersonId }) => {
         {showLines && (
           <SVGConnectionOverlay links={links} personPositions={personPositions}
             highlightPersonId={hoveredPersonId} selectedPersonId={selectedNode?.id}
-            onLinkHover={setHoveredLinkIdx} hoveredLinkIdx={hoveredLinkIdx} theme={theme} />
+            onLinkHover={setHoveredLinkIdx} hoveredLinkIdx={hoveredLinkIdx}
+            selectedLinkIdx={selectedLinkIdx} onLinkSelect={handleLinkSelect}
+            nodesById={nodesById} theme={theme} />
         )}
 
         {nodes.map(node => {
@@ -453,7 +538,7 @@ const NetworkGraph = ({ onPersonSelect, selectedPersonId }) => {
           const isHl = highlightedIds ? highlightedIds.has(node.id) : true;
           return (
             <Marker key={node.id} position={[node.lat, node.lng]}
-              icon={createPersonIcon(node, node.subordinateCount, isSel, node.RiskLevel)}
+              icon={createPersonIcon(node, node.subordinateCount, isSel, node.RiskLevel, metrics.betweenness[node.id] || 0)}
               opacity={isHl ? 1 : 0.25}
               eventHandlers={{
                 click: () => handleNodeClick(node),
@@ -485,6 +570,17 @@ const NetworkGraph = ({ onPersonSelect, selectedPersonId }) => {
         })}
       </MapContainer>
 
+      {/* No-results overlay — when a search/filter matches nobody */}
+      {nodes.length === 0 && (
+        <div className="absolute inset-0 z-[500] flex items-center justify-center pointer-events-none">
+          <div className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm"
+            style={{ background: 'var(--glass-regular)', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)' }}>
+            <Network className="w-4 h-4" />
+            ไม่พบบุคคลตามเงื่อนไขที่เลือก
+          </div>
+        </div>
+      )}
+
       {/* TOP TOOLBAR */}
       <div className="network-toolbar">
         <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl" style={{ background: 'var(--glass-thin)', border: '1px solid var(--border-subtle)' }}>
@@ -495,7 +591,7 @@ const NetworkGraph = ({ onPersonSelect, selectedPersonId }) => {
 
         <div className="flex-1 max-w-xs relative">
           <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-tertiary)' }} />
-          <input type="text" placeholder="Search name, alias, ID..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+          <input type="text" placeholder="Search name, alias, ID..." aria-label="ค้นหาบุคคลในเครือข่าย" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
             className="w-full pl-8 pr-3 py-1.5 rounded-xl text-[11px]"
             style={{ background: 'var(--glass-thin)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', outline: 'none' }} />
         </div>
@@ -648,7 +744,7 @@ const NetworkGraph = ({ onPersonSelect, selectedPersonId }) => {
                 <p className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>{`"${selectedNode.alias}"`}</p>
               </div>
             </div>
-            <button onClick={() => setSelectedNode(null)} className="p-1 rounded-lg transition-all" style={{ color: 'var(--text-tertiary)' }}>
+            <button onClick={() => setSelectedNode(null)} aria-label="ปิดรายละเอียด" className="p-1 rounded-lg transition-all" style={{ color: 'var(--text-tertiary)' }}>
               <X className="w-4 h-4" />
             </button>
           </div>

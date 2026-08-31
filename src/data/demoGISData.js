@@ -1,7 +1,16 @@
 /**
  * Demo GIS Data for Vercel deployment
  * Simplified but realistic GeoJSON for the อ.สามพราน / จ.นครปฐม study area.
+ *
+ * tambonSampran: real subdistrict boundaries of Sam Phran district
+ * (16 tambons, extracted from OpenGISData-Thailand, WGS 84).
+ * roadsSampran: main-road centerlines hand-traced along the real
+ * alignments (Phetkasem/Hwy 4, Phutthamonthon Sai 4-5, 3316, ...).
+ * marketsSampran: market / community-hub points.
  */
+import tambonSampran from './geo/tambonSampran.json';
+import roadsSampran from './geo/roadsSampran.json';
+import marketsSampran from './geo/marketsSampran.json';
 
 // Schools / institutions around Sam Phran (incl. the Royal Police Cadet Academy)
 export const demoPointData = {
@@ -223,15 +232,17 @@ export function getDemoGISLayers() {
   return {
     points: {
       schools: demoPointData,
-      tambonCentroids: demoPointData
+      tambonCentroids: demoPointData,
+      markets: marketsSampran
     },
     lines: {
-      roads: demoLineData
+      roads: roadsSampran
     },
     polygons: {
       provinces: demoProvinceData,
       amphoe: demoAmphoeData,
-      forests: demoForestData
+      forests: demoForestData,
+      tambon: tambonSampran
     }
   };
 }

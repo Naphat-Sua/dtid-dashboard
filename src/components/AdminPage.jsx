@@ -16,6 +16,7 @@ import { useDataStore } from '../store/useStore';
 import { useShallow } from 'zustand/react/shallow';
 import AddPersonForm from './forms/AddPersonForm';
 import RecordCaseForm from './forms/RecordCaseForm';
+import { PERSON_STATUSES, GENDERS, CASE_TYPES, CASE_STATUSES, labelFor } from '../constants/enums';
 
 const inputStyle = {
   background: 'var(--glass-thin)',
@@ -145,6 +146,13 @@ const AdminPage = () => {
                   </tr>
                 </thead>
                 <tbody>
+                  {persons.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-12 text-center" style={{ color: 'var(--text-quaternary)' }}>
+                        ยังไม่มีข้อมูลบุคคลในระบบ
+                      </td>
+                    </tr>
+                  )}
                   {persons.map((person) => (
                     <tr
                       key={person.PersonID}
@@ -160,8 +168,8 @@ const AdminPage = () => {
                             style={{
                               background: person.Status === 'Arrested'
                                 ? 'var(--accent-red)'
-                                : person.Status === 'At Large'
-                                  ? 'var(--accent-purple)'
+                                : person.Status === 'Deceased'
+                                  ? 'var(--text-tertiary)'
                                   : 'var(--accent-orange)'
                             }}
                           >
@@ -183,13 +191,13 @@ const AdminPage = () => {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`badge ${
                           person.Status === 'Arrested' ? 'badge-arrested' :
-                          person.Status === 'At Large' ? 'badge-at-large' : 'badge-suspect'
+                          person.Status === 'Active' ? 'badge-active' : 'badge-suspect'
                         }`}>
-                          {person.Status}
+                          {labelFor(PERSON_STATUSES, person.Status)}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm" style={{ color: 'var(--text-secondary)' }}>
-                        {person.Gender === 'M' ? 'Male' : person.Gender === 'F' ? 'Female' : 'Other'}
+                        {labelFor(GENDERS, person.Gender)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right">
                         <div className="flex items-center justify-end gap-2">
@@ -200,6 +208,7 @@ const AdminPage = () => {
                             onMouseOver={(e) => e.currentTarget.style.background = 'var(--glass-regular)'}
                             onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
                             title="Edit"
+                            aria-label="แก้ไขข้อมูลบุคคล"
                           >
                             <Edit className="w-4 h-4" />
                           </button>
@@ -210,6 +219,7 @@ const AdminPage = () => {
                             onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255, 69, 58, 0.12)'}
                             onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
                             title="Delete"
+                            aria-label="ลบบุคคล"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -291,6 +301,13 @@ const AdminPage = () => {
                   </tr>
                 </thead>
                 <tbody>
+                  {cases.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="px-6 py-12 text-center" style={{ color: 'var(--text-quaternary)' }}>
+                        ยังไม่มีข้อมูลคดีในระบบ
+                      </td>
+                    </tr>
+                  )}
                   {cases.map((caseItem) => {
                     const caseSeizures = drugSeizures.filter(s => s.CaseID === caseItem.CaseID);
                     return (
@@ -305,10 +322,10 @@ const AdminPage = () => {
                           {caseItem.CaseNumber}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm" style={{ color: 'var(--text-secondary)' }}>
-                          {caseItem.CaseType}
+                          {labelFor(CASE_TYPES, caseItem.CaseType)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm" style={{ color: 'var(--text-secondary)' }}>
-                          {new Date(caseItem.ArrestDate).toLocaleDateString('th-TH')}
+                          {caseItem.ArrestDate ? new Date(caseItem.ArrestDate).toLocaleDateString('th-TH') : '—'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`badge ${
@@ -316,7 +333,7 @@ const AdminPage = () => {
                             caseItem.Status === 'Adjudicated' ? 'badge-arrested' :
                             caseItem.Status === 'Closed' ? 'badge-active' : 'badge-suspect'
                           }`}>
-                            {caseItem.Status}
+                            {labelFor(CASE_STATUSES, caseItem.Status)}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm" style={{ color: 'var(--text-secondary)' }}>
@@ -331,6 +348,7 @@ const AdminPage = () => {
                               onMouseOver={(e) => e.currentTarget.style.background = 'var(--glass-regular)'}
                               onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
                               title="Edit"
+                              aria-label="แก้ไขคดี"
                             >
                               <Edit className="w-4 h-4" />
                             </button>
@@ -341,6 +359,7 @@ const AdminPage = () => {
                               onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255, 69, 58, 0.12)'}
                               onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
                               title="Delete"
+                              aria-label="ลบคดี"
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
@@ -480,6 +499,7 @@ const AdminPage = () => {
               </h3>
               <button
                 onClick={() => setEditingPerson(null)}
+                aria-label="ปิด"
                 className="p-2 rounded-xl transition-colors"
                 style={{ color: 'var(--text-tertiary)' }}
                 onMouseOver={(e) => e.currentTarget.style.background = 'var(--glass-regular)'}
@@ -583,9 +603,9 @@ const AdminPage = () => {
                     onFocus={(e) => Object.assign(e.target.style, inputFocusStyle)}
                     onBlur={(e) => Object.assign(e.target.style, inputStyle)}
                   >
-                    <option value="M">Male</option>
-                    <option value="F">Female</option>
-                    <option value="O">Other</option>
+                    {GENDERS.map((g) => (
+                      <option key={g.value} value={g.value}>{g.label}</option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -602,9 +622,9 @@ const AdminPage = () => {
                   onFocus={(e) => Object.assign(e.target.style, inputFocusStyle)}
                   onBlur={(e) => Object.assign(e.target.style, inputStyle)}
                 >
-                  <option value="Suspect">Suspect</option>
-                  <option value="At Large">At Large</option>
-                  <option value="Arrested">Arrested</option>
+                  {PERSON_STATUSES.map((s) => (
+                    <option key={s.value} value={s.value}>{s.label}</option>
+                  ))}
                 </select>
               </div>
               
@@ -667,6 +687,7 @@ const AdminPage = () => {
               </h3>
               <button
                 onClick={() => setEditingCase(null)}
+                aria-label="ปิด"
                 className="p-2 rounded-xl transition-colors"
                 style={{ color: 'var(--text-tertiary)' }}
                 onMouseOver={(e) => e.currentTarget.style.background = 'var(--glass-regular)'}
@@ -706,11 +727,9 @@ const AdminPage = () => {
                     onFocus={(e) => Object.assign(e.target.style, inputFocusStyle)}
                     onBlur={(e) => Object.assign(e.target.style, inputStyle)}
                   >
-                    <option value="Trafficking">Trafficking</option>
-                    <option value="Possession">Possession</option>
-                    <option value="Distribution">Distribution</option>
-                    <option value="Manufacturing">Manufacturing</option>
-                    <option value="Import/Export">Import/Export</option>
+                    {CASE_TYPES.map((t) => (
+                      <option key={t.value} value={t.value}>{t.label}</option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -743,9 +762,9 @@ const AdminPage = () => {
                     onFocus={(e) => Object.assign(e.target.style, inputFocusStyle)}
                     onBlur={(e) => Object.assign(e.target.style, inputStyle)}
                   >
-                    <option value="Under Investigation">Under Investigation</option>
-                    <option value="Adjudicated">Adjudicated</option>
-                    <option value="Closed">Closed</option>
+                    {CASE_STATUSES.map((s) => (
+                      <option key={s.value} value={s.value}>{s.label}</option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -768,12 +787,12 @@ const AdminPage = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
-                    Arrest Location
+                    เจ้าหน้าที่ผู้รับผิดชอบ / Officer in Charge
                   </label>
                   <input
                     type="text"
-                    value={editingCase.ArrestLocation || ''}
-                    onChange={(e) => setEditingCase({...editingCase, ArrestLocation: e.target.value})}
+                    value={editingCase.OfficerInCharge || ''}
+                    onChange={(e) => setEditingCase({...editingCase, OfficerInCharge: e.target.value})}
                     className="w-full px-3 py-2 rounded-xl focus:ring-2 focus:outline-none transition-all"
                     style={inputStyle}
                     onFocus={(e) => Object.assign(e.target.style, inputFocusStyle)}
@@ -782,12 +801,12 @@ const AdminPage = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
-                    Investigating Officer
+                    เลขคดีศาล / Court Case Number
                   </label>
                   <input
                     type="text"
-                    value={editingCase.InvestigatingOfficer || ''}
-                    onChange={(e) => setEditingCase({...editingCase, InvestigatingOfficer: e.target.value})}
+                    value={editingCase.CourtCaseNumber || ''}
+                    onChange={(e) => setEditingCase({...editingCase, CourtCaseNumber: e.target.value})}
                     className="w-full px-3 py-2 rounded-xl focus:ring-2 focus:outline-none transition-all"
                     style={inputStyle}
                     onFocus={(e) => Object.assign(e.target.style, inputFocusStyle)}

@@ -380,6 +380,20 @@ body { margin: 0; min-height: 100vh; transition: background-color 0.6s var(--eas
   left: calc(var(--panel-inset) + var(--sidebar-width-collapsed) + var(--panel-gap));
 }
 
+/* Analysis controls — offset to clear the floating sidebar (was hidden behind it) */
+.analysis-panel-left {
+  left: calc(var(--panel-inset) + var(--sidebar-width-expanded) + var(--panel-gap));
+}
+.analysis-popover-left {
+  left: calc(var(--panel-inset) + var(--sidebar-width-expanded) + var(--panel-gap) + 300px + var(--panel-gap));
+}
+:has(.sidebar-collapsed) .analysis-panel-left {
+  left: calc(var(--panel-inset) + var(--sidebar-width-collapsed) + var(--panel-gap));
+}
+:has(.sidebar-collapsed) .analysis-popover-left {
+  left: calc(var(--panel-inset) + var(--sidebar-width-collapsed) + var(--panel-gap) + 300px + var(--panel-gap));
+}
+
 /* Floating Footer */
 .floating-footer {
   position: fixed;

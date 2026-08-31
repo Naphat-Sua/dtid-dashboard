@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { Upload, FileText, CheckCircle, AlertCircle, X, Loader2, MapPin, CloudUpload } from 'lucide-react';
 import { useDataStore } from '../store/useStore';
+import { dbService } from '../services/dbService';
 
 const CsvUploader = ({ onClose, onSuccess }) => {
   const [file, setFile] = useState(null);
@@ -12,8 +13,6 @@ const CsvUploader = ({ onClose, onSuccess }) => {
   const fileInputRef = useRef(null);
 
   const { refreshFromDatabase } = useDataStore();
-
-  const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
   // Parse a CSV string into preview rows
   const parsePreview = useCallback((text) => {
@@ -78,19 +77,9 @@ const CsvUploader = ({ onClose, onSuccess }) => {
     setResult(null);
 
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-
-      const response = await fetch(`${API_BASE}/upload/csv`, {
-        method: 'POST',
-        body: formData,
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Upload failed');
-      }
+      // Goes through dbService so the Admin-gated endpoint gets the Bearer
+      // token (and a transparent 401 refresh-retry).
+      const data = await dbService.uploadCsv(file);
 
       setResult(data);
 
@@ -160,6 +149,7 @@ const CsvUploader = ({ onClose, onSuccess }) => {
           </div>
           <button
             onClick={onClose}
+            aria-label="ปิด"
             className="p-2 rounded-xl transition-all duration-300"
             style={{ color: 'var(--text-tertiary)' }}
             onMouseOver={e => e.currentTarget.style.background = 'var(--glass-regular)'}
@@ -189,6 +179,7 @@ const CsvUploader = ({ onClose, onSuccess }) => {
                 ref={fileInputRef}
                 type="file"
                 accept=".csv"
+                aria-label="เลือกไฟล์ CSV เพื่อนำเข้า"
                 onChange={handleInputChange}
                 className="hidden"
               />

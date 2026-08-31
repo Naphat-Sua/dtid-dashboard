@@ -108,8 +108,10 @@ const ParamSlider = ({ label, value, onChange, min, max, step, unit, autoValue, 
           <span className="text-[11px] font-medium" style={{ color: 'var(--text-secondary)' }}>{label}</span>
           {tooltip && (
             <button
+              type="button"
               onMouseEnter={() => setShowTooltip(true)}
               onMouseLeave={() => setShowTooltip(false)}
+              aria-label="ข้อมูลเพิ่มเติม"
               className="relative"
             >
               <Info className="w-3 h-3" style={{ color: 'var(--text-quaternary)' }} />
@@ -203,7 +205,7 @@ const AnalysisControls = ({
     <>
       {/* Main controls panel */}
       <div
-        className="absolute top-20 left-4 z-[800] rounded-2xl glass-floating overflow-hidden transition-all duration-300"
+        className="absolute top-20 analysis-panel-left z-[800] rounded-2xl glass-floating overflow-hidden transition-all duration-300"
         style={{ width: '300px' }}
       >
         {/* Header */}
@@ -241,6 +243,7 @@ const AnalysisControls = ({
                   </div>
                   <button
                     onClick={() => setActiveMethodology(activeMethodology === 'kde' ? null : 'kde')}
+                    aria-label="วิธีการคำนวณ KDE"
                     className="p-1 rounded transition-colors"
                     style={{ background: activeMethodology === 'kde' ? 'var(--glass-thick)' : 'transparent' }}
                   >
@@ -357,6 +360,7 @@ const AnalysisControls = ({
                   </div>
                   <button
                     onClick={() => setActiveMethodology(activeMethodology === 'giStar' ? null : 'giStar')}
+                    aria-label="วิธีการคำนวณ Getis-Ord Gi*"
                     className="p-1 rounded transition-colors"
                     style={{ background: activeMethodology === 'giStar' ? 'var(--glass-thick)' : 'transparent' }}
                   >
@@ -513,6 +517,7 @@ const AnalysisControls = ({
                           <span className="text-[10px] font-semibold" style={{ color: 'var(--text-secondary)' }}>Moran&apos;s I</span>
                           <button
                             onClick={() => setActiveMethodology(activeMethodology === 'moransI' ? null : 'moransI')}
+                            aria-label="วิธีการคำนวณ Moran's I"
                             className="p-0.5 rounded transition-colors"
                             style={{ background: activeMethodology === 'moransI' ? 'var(--glass-thick)' : 'transparent' }}
                           >
@@ -547,6 +552,7 @@ const AnalysisControls = ({
                           <span className="text-[10px] font-semibold" style={{ color: 'var(--text-secondary)' }}>Nearest Neighbor</span>
                           <button
                             onClick={() => setActiveMethodology(activeMethodology === 'ann' ? null : 'ann')}
+                            aria-label="วิธีการคำนวณ Average Nearest Neighbor"
                             className="p-0.5 rounded transition-colors"
                             style={{ background: activeMethodology === 'ann' ? 'var(--glass-thick)' : 'transparent' }}
                           >
@@ -598,7 +604,7 @@ const AnalysisControls = ({
       {/* ── Methodology Popover ── */}
       {activeMethodology && (
         <div
-          className="absolute top-20 left-[320px] z-[810] rounded-2xl glass-floating overflow-hidden"
+          className="absolute top-20 analysis-popover-left z-[810] rounded-2xl glass-floating overflow-hidden"
           style={{ width: '320px' }}
         >
           <div className="flex items-center justify-between p-3"
@@ -609,7 +615,7 @@ const AnalysisControls = ({
                 {METHODOLOGY[activeMethodology].title}
               </span>
             </div>
-            <button onClick={() => setActiveMethodology(null)} className="p-1 rounded-lg transition-colors"
+            <button onClick={() => setActiveMethodology(null)} aria-label="ปิด" className="p-1 rounded-lg transition-colors"
               style={{ background: 'var(--glass-thin)' }}>
               <X className="w-3.5 h-3.5" style={{ color: 'var(--text-tertiary)' }} />
             </button>

@@ -3,7 +3,7 @@ import Sidebar from './components/Sidebar';
 import ThemeProvider from './components/ThemeProvider';
 import ThemeToggle from './components/ThemeToggle';
 import LoginPage from './components/LoginPage';
-import { useAuthStore } from './store/useStore';
+import { useAuthStore, useDataStore } from './store/useStore';
 import { Shield, Clock, MapPin, Radio, AlertTriangle, Fingerprint, Upload, LogOut } from 'lucide-react';
 
 // ── Lazy-loaded heavy view components ──────────────────────
@@ -75,6 +75,8 @@ function AppContent() {
   const logout = useAuthStore((s) => s.logout);
   const hasRole = useAuthStore((s) => s.hasRole);
   const canAdmin = hasRole('Admin');
+  // Data source: LOCAL (bundled demo data) vs a live backend session.
+  const isLiveDb = useDataStore((s) => s.dbMode !== 'local');
   // Guard: a non-Admin must never land on the data-management view.
   const effectiveView = activeView === 'admin' && !canAdmin ? 'map' : activeView;
 
@@ -172,9 +174,14 @@ function AppContent() {
             </button>
           )}
 
-          <div className="status-indicator status-online">
-            <Radio className="w-3 h-3 animate-pulse" />
-            <span>LIVE</span>
+          <div className="status-indicator"
+            style={isLiveDb
+              ? undefined
+              : { background: 'rgba(255,159,10,0.12)', color: 'var(--accent-orange)', border: '1px solid rgba(255,159,10,0.2)' }}
+            title={isLiveDb ? 'เชื่อมต่อฐานข้อมูลจริง' : 'โหมดสาธิต (ข้อมูลตัวอย่าง)'}>
+            {isLiveDb
+              ? <><Radio className="w-3 h-3 animate-pulse" /><span>LIVE</span></>
+              : <span>DEMO</span>}
           </div>
 
           <ThemeToggle />

@@ -8,8 +8,9 @@
 
 const NOMINATIM_URL = process.env.NOMINATIM_URL || 'https://nominatim.openstreetmap.org/search';
 const USER_AGENT    = process.env.GEOCODER_USER_AGENT || 'DTID-Dashboard/1.0 (research prototype)';
-const MIN_INTERVAL_MS = Number(process.env.GEOCODER_MIN_INTERVAL_MS || 1100);
-const GEOCODER_ENABLED = process.env.GEOCODER_ENABLED !== 'false';
+// Read at call time so tests (and runtime config) can adjust without re-import.
+const minIntervalMs = () => Number(process.env.GEOCODER_MIN_INTERVAL_MS || 1100);
+const geocoderEnabled = () => process.env.GEOCODER_ENABLED !== 'false';
 
 const cache = new Map();
 let lastCall = 0;
@@ -43,14 +44,14 @@ async function geocodeOnce(q) {
  * per-row without aborting a batch import.
  */
 export async function geocode(address, parts = {}) {
-  if (!GEOCODER_ENABLED) return null;
+  if (!geocoderEnabled()) return null;
   const q = buildQuery(address, parts);
   if (!q || q === 'Thailand') return null;
   if (cache.has(q)) return cache.get(q);
 
   const run = queue.then(async () => {
     if (cache.has(q)) return cache.get(q); // may have been filled while queued
-    const wait = MIN_INTERVAL_MS - (Date.now() - lastCall);
+    const wait = minIntervalMs() - (Date.now() - lastCall);
     if (wait > 0) await sleep(wait);
     lastCall = Date.now();
     try {

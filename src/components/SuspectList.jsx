@@ -17,6 +17,7 @@ import { useDataStore } from '../store/useStore';
 import { useShallow } from 'zustand/react/shallow';
 import { getRiskConfig } from '../utils/riskLevels';
 import { filterCasesByProvince, getPersonIdsForCases } from '../utils/provinceFilter';
+import { AT_LARGE_STATUSES, DETAINED_STATUSES, PERSON_STATUSES, labelFor } from '../constants/enums';
 
 const SuspectList = ({ onFlyTo, onPersonSelect, selectedPersonId }) => {
   const { persons, locations, cases, personCases, getCasesForPerson, selectedProvince } = useDataStore(
@@ -27,8 +28,11 @@ const SuspectList = ({ onFlyTo, onPersonSelect, selectedPersonId }) => {
     }))
   );
 
+  const dbMode = useDataStore((s) => s.dbMode);
+  const isLiveDb = dbMode !== 'local';
+
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all'); // all, Arrested, Suspect
+  const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'detained' | 'at-large'
 
   // Helper to get location by ID
   const getLocationById = (id) => locations.find(l => l.LocationID === id);
@@ -48,10 +52,9 @@ const SuspectList = ({ onFlyTo, onPersonSelect, selectedPersonId }) => {
       // Province filter — only people tied to a case in the selected province
       if (scopedPersonIds && !scopedPersonIds.has(person.PersonID)) return false;
 
-      // Status filter
-      if (statusFilter !== 'all' && person.Status !== statusFilter) {
-        return false;
-      }
+      // Status filter (detained vs at-large sets)
+      if (statusFilter === 'detained' && !DETAINED_STATUSES.includes(person.Status)) return false;
+      if (statusFilter === 'at-large' && !AT_LARGE_STATUSES.includes(person.Status)) return false;
 
       // Search filter
       if (searchQuery) {
@@ -67,6 +70,12 @@ const SuspectList = ({ onFlyTo, onPersonSelect, selectedPersonId }) => {
       return true;
     });
   }, [persons, personCases, scopedCaseIds, searchQuery, statusFilter]);
+
+  // Counts for the filter pills (over the full target list)
+  const statusCounts = useMemo(() => ({
+    detained: persons.filter(p => DETAINED_STATUSES.includes(p.Status)).length,
+    atLarge: persons.filter(p => AT_LARGE_STATUSES.includes(p.Status)).length,
+  }), [persons]);
 
   const handleFlyTo = (person) => {
     const location = getLocationById(person.CurrentAddressID);
@@ -105,6 +114,7 @@ const SuspectList = ({ onFlyTo, onPersonSelect, selectedPersonId }) => {
         <input
           type="text"
           placeholder="Search name, alias, or National ID..."
+          aria-label="ค้นหาเป้าหมายด้วยชื่อ ฉายา หรือเลขบัตรประชาชน"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="w-full rounded-2xl pl-10 pr-4 py-2.5 text-sm transition-all duration-300
@@ -122,8 +132,8 @@ const SuspectList = ({ onFlyTo, onPersonSelect, selectedPersonId }) => {
       <div className="flex gap-1.5 mb-4">
         {[
           { key: 'all', label: `ALL (${persons.length})`, icon: Shield, accent: 'var(--accent-blue)' },
-          { key: 'Arrested', label: 'DETAINED', icon: UserX, accent: 'var(--accent-red)' },
-          { key: 'Suspect', label: 'AT LARGE', icon: AlertTriangle, accent: 'var(--accent-orange)' },
+          { key: 'detained', label: `DETAINED (${statusCounts.detained})`, icon: UserX, accent: 'var(--accent-red)' },
+          { key: 'at-large', label: `AT LARGE (${statusCounts.atLarge})`, icon: AlertTriangle, accent: 'var(--accent-orange)' },
         ].map(f => (
           <button
             key={f.key}
@@ -178,10 +188,10 @@ const SuspectList = ({ onFlyTo, onPersonSelect, selectedPersonId }) => {
                     {/* Avatar with status ring */}
                     <div className="relative">
                       <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-lg font-bold
-                        ${person.Status === 'Arrested' 
-                          ? 'bg-gradient-to-br from-red-600 to-red-700 ring-2 ring-red-500/30' 
+                        ${person.Status === 'Arrested'
+                          ? 'bg-gradient-to-br from-red-600 to-red-700 ring-2 ring-red-500/30'
                           : 'bg-gradient-to-br from-amber-500 to-amber-600 ring-2 ring-amber-500/30'}`}>
-                        {person.Gender === 'M' ? '👨' : '👩'}
+                        {person.Gender === 'M' ? '👨' : person.Gender === 'F' ? '👩' : '🧑'}
                       </div>
                     </div>
 
@@ -199,7 +209,7 @@ const SuspectList = ({ onFlyTo, onPersonSelect, selectedPersonId }) => {
                             ? { background: 'rgba(255, 69, 58, 0.1)', color: 'var(--accent-red)', border: '1px solid rgba(255, 69, 58, 0.15)' }
                             : { background: 'rgba(255, 159, 10, 0.1)', color: 'var(--accent-orange)', border: '1px solid rgba(255, 159, 10, 0.15)' }}>
                           {person.Status === 'Arrested' ? <UserX className="w-3 h-3" /> : <AlertTriangle className="w-3 h-3" />}
-                          {person.Status}
+                          {labelFor(PERSON_STATUSES, person.Status)}
                         </span>
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase"
                           style={{ background: `${risk.colors.raw}22`, color: risk.colors.raw }}>
@@ -263,8 +273,11 @@ const SuspectList = ({ onFlyTo, onPersonSelect, selectedPersonId }) => {
             Displaying {filteredPersons.length} of {persons.length} targets
           </span>
           <span className="flex items-center gap-1">
-            <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: 'var(--accent-green)', boxShadow: 'var(--glow-green)' }} />
-            Live
+            <div className={`w-2 h-2 rounded-full ${isLiveDb ? 'animate-pulse' : ''}`}
+              style={isLiveDb
+                ? { background: 'var(--accent-green)', boxShadow: 'var(--glow-green)' }
+                : { background: 'var(--accent-orange)' }} />
+            {isLiveDb ? 'Live' : 'Demo'}
           </span>
         </div>
       </div>
