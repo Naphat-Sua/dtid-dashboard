@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useMemo, useState, useCallback } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap, Circle, CircleMarker, Polyline } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap, Circle, CircleMarker, Polyline, Pane } from 'react-leaflet';
 import L from '../leafletSetup'; // exposes window.L before the leaflet.heat UMD plugin loads
 import 'leaflet.heat';
 import { 
@@ -537,7 +537,7 @@ const CrimeMap = ({ flyToLocation, showHeatmap = true, onMarkerClick }) => {
 
   // Road-network trafficking corridors (computed only when the layer is on)
   const corridorData = useMemo(() => {
-    if (!showCorridors) return { segments: [] };
+    if (!showCorridors) return { segments: [], diagnostics: null };
     const roads = gisLayers?.lines?.roads?.features || [];
     return analyzeCorridors(roads, analysisPoints);
   }, [showCorridors, gisLayers, analysisPoints]);
@@ -581,19 +581,22 @@ const CrimeMap = ({ flyToLocation, showHeatmap = true, onMarkerClick }) => {
         {/* Zoom observer — feeds zoom level for adaptive resolution */}
         <ZoomObserver onZoomChange={handleZoomChange} />
 
-        {/* Road-network trafficking corridors — width/colour by usage weight */}
-        {showCorridors && corridorData.segments.map((seg, i) => (
-          <Polyline
-            key={`corridor-${i}`}
-            positions={[seg.from, seg.to]}
-            pathOptions={{
-              color: seg.weight > 0.66 ? '#ef4444' : seg.weight > 0.33 ? '#f97316' : '#fbbf24',
-              weight: 2 + seg.weight * 7,
-              opacity: 0.85,
-              lineCap: 'round',
-            }}
-          />
-        ))}
+        {/* Keep corridors above heatmap/KDE (overlayPane: 400) and below markers (markerPane: 600). */}
+        <Pane name="corridorsPane" style={{ zIndex: 550, pointerEvents: 'none' }}>
+          {showCorridors && corridorData.segments.map((seg, i) => (
+            <Polyline
+              key={`corridor-${i}`}
+              pane="corridorsPane"
+              positions={[seg.from, seg.to]}
+              pathOptions={{
+                color: seg.weight > 0.66 ? '#ef4444' : seg.weight > 0.33 ? '#f97316' : '#fbbf24',
+                weight: 2 + seg.weight * 7,
+                opacity: 0.95,
+                lineCap: 'round',
+              }}
+            />
+          ))}
+        </Pane>
 
         {/* Visualization Layers based on mode */}
         {(vizMode === 'heatmap' || vizMode === 'all') && showHeatmap && (
@@ -906,20 +909,41 @@ const CrimeMap = ({ flyToLocation, showHeatmap = true, onMarkerClick }) => {
             <p className="text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
               เส้นทางลำเลียง (Corridors)
             </p>
-            <div className="space-y-1">
-              <div className="flex items-center gap-2 text-[10px]">
-                <div className="w-5 h-[4px] rounded-full" style={{ background: '#ef4444' }}></div>
-                <span style={{ color: 'var(--text-secondary)' }}>ความถี่การใช้สูง</span>
+            {corridorData.segments.length === 0 ? (
+              <div className="space-y-1.5">
+                <p className="text-[10px] font-semibold" style={{ color: 'var(--accent-orange)' }}>
+                  ไม่พบเส้นทางจากข้อมูลปัจจุบัน
+                </p>
+                {corridorData.diagnostics && (
+                  <div className="space-y-0.5 text-[10px]" style={{ color: 'var(--text-tertiary)' }}>
+                    <p>ถนน {corridorData.diagnostics.roadFeatureCount} เส้น · โหนดถนน {corridorData.diagnostics.roadNodeCount}</p>
+                    <p>จุดกิจกรรม {corridorData.diagnostics.validPointCount}/{corridorData.diagnostics.activityPointCount}</p>
+                    <p>จุด snap {corridorData.diagnostics.snappedPointCount} · โหนดที่เชื่อมได้ {corridorData.diagnostics.connectedNodeCount}</p>
+                    <p>คู่เส้นทาง {corridorData.diagnostics.reachablePairCount}/{corridorData.diagnostics.candidatePairCount}</p>
+                  </div>
+                )}
               </div>
-              <div className="flex items-center gap-2 text-[10px]">
-                <div className="w-5 h-[3px] rounded-full" style={{ background: '#f97316' }}></div>
-                <span style={{ color: 'var(--text-secondary)' }}>ปานกลาง</span>
-              </div>
-              <div className="flex items-center gap-2 text-[10px]">
-                <div className="w-5 h-[2px] rounded-full" style={{ background: '#fbbf24' }}></div>
-                <span style={{ color: 'var(--text-secondary)' }}>ต่ำ</span>
-              </div>
-            </div>
+            ) : (
+              <>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 text-[10px]">
+                    <div className="w-5 h-[4px] rounded-full" style={{ background: '#ef4444' }}></div>
+                    <span style={{ color: 'var(--text-secondary)' }}>ความถี่การใช้สูง</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-[10px]">
+                    <div className="w-5 h-[3px] rounded-full" style={{ background: '#f97316' }}></div>
+                    <span style={{ color: 'var(--text-secondary)' }}>ปานกลาง</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-[10px]">
+                    <div className="w-5 h-[2px] rounded-full" style={{ background: '#fbbf24' }}></div>
+                    <span style={{ color: 'var(--text-secondary)' }}>ต่ำ</span>
+                  </div>
+                </div>
+                <div className="mt-1 text-[10px]" style={{ color: 'var(--text-tertiary)' }}>
+                  ถนน {corridorData.diagnostics.roadFeatureCount} เส้น · จุดกิจกรรม {corridorData.diagnostics.validPointCount} · โหนดเชื่อมได้ {corridorData.diagnostics.connectedNodeCount} · เส้นทาง {corridorData.diagnostics.reachablePairCount}/{corridorData.diagnostics.candidatePairCount}
+                </div>
+              </>
+            )}
           </div>
         )}
 

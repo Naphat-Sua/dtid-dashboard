@@ -33,17 +33,32 @@ export function buildRoadGraph(roadFeatures = []) {
     adjacency.get(b).push({ to: a, w });
   };
 
-  for (const f of roadFeatures) {
-    const coords = f?.geometry?.coordinates;
-    if (!Array.isArray(coords)) continue;
+  const toCoordinate = (value) => {
+    if (typeof value === 'string' && value.trim() === '') return null;
+    const number = Number(value);
+    return Number.isFinite(number) ? number : null;
+  };
+  const addLine = (coordinates) => {
+    if (!Array.isArray(coordinates)) return;
     let prev = null;
-    for (const pair of coords) {
+    for (const pair of coordinates) {
       if (!Array.isArray(pair) || pair.length < 2) continue;
-      const [lng, lat] = pair;
+      const lng = toCoordinate(pair[0]);
+      const lat = toCoordinate(pair[1]);
+      if (lat === null || lng === null) {
+        prev = null;
+        continue;
+      }
       const id = getNode(lng, lat);
       if (prev !== null) addEdge(prev, id);
       prev = id;
     }
+  };
+
+  for (const f of roadFeatures) {
+    const { type, coordinates } = f?.geometry || {};
+    if (type === 'LineString') addLine(coordinates);
+    if (type === 'MultiLineString') coordinates?.forEach(addLine);
   }
   return { nodes, adjacency };
 }
@@ -88,27 +103,73 @@ function reconstruct(prev, target) {
  * @returns {{segments, graph, snapped, activityNodes}} segments sorted by usage
  *   (each: { from:[lat,lng], to:[lat,lng], count, weight:0..1 }).
  */
-export function analyzeCorridors(roadFeatures, points = [], options = {}) {
+export function analyzeCorridors(roadFeatures = [], points = [], options = {}) {
   const { maxPoints = 12 } = options;
-  const graph = buildRoadGraph(roadFeatures);
-  if (graph.nodes.length < 2 || points.length < 2) {
-    return { segments: [], graph, snapped: [], activityNodes: 0 };
-  }
-
-  // Rank points by activity and cap to bound the O(k²) path computation.
-  const pts = points
-    .filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng))
-    .sort((a, b) => (b.value || 1) - (a.value || 1))
+  const features = Array.isArray(roadFeatures) ? roadFeatures : [];
+  const graph = buildRoadGraph(features);
+  const toCoordinate = (value) => {
+    if (typeof value === 'string' && value.trim() === '') return null;
+    const number = Number(value);
+    return Number.isFinite(number) ? number : null;
+  };
+  const normalizedPoints = (Array.isArray(points) ? points : [])
+    .map((point) => ({
+      ...point,
+      lat: toCoordinate(point?.lat),
+      lng: toCoordinate(point?.lng),
+      value: toCoordinate(point?.value) ?? 1,
+    }))
+    .filter((point) => point.lat !== null && point.lng !== null);
+  const validPoints = [...normalizedPoints]
+    .sort((a, b) => b.value - a.value)
     .slice(0, maxPoints);
-  const snapped = pts.map((p) => ({ lat: p.lat, lng: p.lng, node: nearestNode(graph, p.lat, p.lng).id }));
-  const uniqNodes = [...new Set(snapped.map((s) => s.node))];
+  const roadFeatureCount = features.filter((feature) => {
+    const type = feature?.geometry?.type;
+    return (type === 'LineString' || type === 'MultiLineString') &&
+      Array.isArray(feature.geometry.coordinates);
+  }).length;
+  const emptyResult = (reason, snapped = [], activityNodes = 0, reachablePairs = 0, candidatePairs = 0) => ({
+    segments: [],
+    graph,
+    snapped,
+    activityNodes,
+    diagnostics: {
+      roadFeatureCount,
+      roadNodeCount: graph.nodes.length,
+      activityPointCount: (Array.isArray(points) ? points : []).length,
+      validPointCount: normalizedPoints.length,
+      snappedPointCount: snapped.length,
+      connectedNodeCount: activityNodes,
+      candidatePairCount: candidatePairs,
+      reachablePairCount: reachablePairs,
+      reason,
+    },
+  });
+
+  if (graph.nodes.length < 2) return emptyResult('no-road-network');
+  if (validPoints.length < 2) return emptyResult('not-enough-activity-points');
+
+  const snapped = validPoints.map((point) => ({
+    lat: point.lat,
+    lng: point.lng,
+    node: nearestNode(graph, point.lat, point.lng).id,
+  }));
+  const uniqNodes = [...new Set(snapped.map((point) => point.node))];
+  const candidatePairs = (uniqNodes.length * (uniqNodes.length - 1)) / 2;
+  if (uniqNodes.length < 2) return emptyResult('activity-points-snap-to-same-node', snapped, uniqNodes.length, 0, candidatePairs);
 
   const segCount = new Map();
+  const connectedNodeIds = new Set();
+  let reachablePairs = 0;
   for (let i = 0; i < uniqNodes.length; i++) {
-    const { prev } = dijkstra(graph, uniqNodes[i]);
+    const { prev, dist } = dijkstra(graph, uniqNodes[i]);
     for (let j = i + 1; j < uniqNodes.length; j++) {
+      if (!Number.isFinite(dist[uniqNodes[j]])) continue;
       const path = reconstruct(prev, uniqNodes[j]);
-      if (path.length < 2 || path[0] !== uniqNodes[i]) continue; // unreachable
+      if (path.length < 2 || path[0] !== uniqNodes[i]) continue;
+      reachablePairs++;
+      connectedNodeIds.add(uniqNodes[i]);
+      connectedNodeIds.add(uniqNodes[j]);
       for (let k = 0; k + 1 < path.length; k++) {
         const a = path[k], b = path[k + 1];
         const key = a < b ? `${a}-${b}` : `${b}-${a}`;
@@ -128,7 +189,18 @@ export function analyzeCorridors(roadFeatures, points = [], options = {}) {
         weight: count / maxCount,
       };
     })
-    .sort((x, y) => y.count - x.count);
-
-  return { segments, graph, snapped, activityNodes: uniqNodes.length };
+    .sort((a, b) => b.count - a.count);
+  const reason = segments.length ? null : 'no-connected-routes';
+  const diagnostics = {
+    roadFeatureCount,
+    roadNodeCount: graph.nodes.length,
+    activityPointCount: (Array.isArray(points) ? points : []).length,
+    validPointCount: validPoints.length,
+    snappedPointCount: snapped.length,
+    connectedNodeCount: connectedNodeIds.size,
+    candidatePairCount: candidatePairs,
+    reachablePairCount: reachablePairs,
+    reason,
+  };
+  return { segments, graph, snapped, activityNodes: uniqNodes.length, diagnostics };
 }

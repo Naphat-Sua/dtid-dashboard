@@ -38,8 +38,59 @@ describe('roadNetwork', () => {
     assert.equal(res.segments[0].count, Math.max(...res.segments.map((s) => s.count)));
   });
 
-  it('guards empty roads / single point', () => {
-    assert.equal(analyzeCorridors([], [{ lat: 1, lng: 1 }, { lat: 2, lng: 2 }]).segments.length, 0);
-    assert.equal(analyzeCorridors(roads, [{ lat: 13.71, lng: 100.1 }]).segments.length, 0);
+  it('reports why empty road data produces no corridors', () => {
+    const result = analyzeCorridors([], [{ lat: 1, lng: 1 }, { lat: 2, lng: 2 }]);
+    assert.equal(result.segments.length, 0);
+    assert.equal(result.diagnostics.reason, 'no-road-network');
+    assert.equal(result.diagnostics.roadFeatureCount, 0);
+  });
+
+  it('reports activity points that snap to the same road node', () => {
+    const line = [{ geometry: { type: 'LineString', coordinates: [[100, 13], [100.01, 13]] } }];
+    const result = analyzeCorridors(line, [
+      { lat: 13, lng: 100.0001 }, { lat: 13, lng: 100.0002 },
+    ]);
+    assert.equal(result.segments.length, 0);
+    assert.equal(result.diagnostics.connectedNodeCount, 1);
+    assert.equal(result.diagnostics.reason, 'activity-points-snap-to-same-node');
+  });
+
+  it('counts only connected route pairs in a disconnected network', () => {
+    const disconnected = [
+      { geometry: { type: 'LineString', coordinates: [[100, 13], [100.01, 13]] } },
+      { geometry: { type: 'LineString', coordinates: [[101, 14], [101.01, 14]] } },
+    ];
+    const result = analyzeCorridors(disconnected, [
+      { lat: 13, lng: 100 }, { lat: 13, lng: 100.01 },
+      { lat: 14, lng: 101 }, { lat: 14, lng: 101.01 },
+    ]);
+    assert.ok(result.segments.length > 0);
+    assert.equal(result.diagnostics.candidatePairCount, 6);
+    assert.equal(result.diagnostics.reachablePairCount, 2);
+    assert.equal(result.diagnostics.reason, null);
+  });
+
+  it('accepts numeric-string coordinates and MultiLineString roads', () => {
+    const multiLine = [{
+      geometry: {
+        type: 'MultiLineString',
+        coordinates: [
+          [['100.1', '13.71'], ['100.2', '13.71']],
+          [['100.2', '13.71'], ['100.3', '13.71']],
+        ],
+      },
+    }];
+    const result = analyzeCorridors(multiLine, [
+      { lat: '13.71', lng: '100.1', value: '2' },
+      { lat: '13.71', lng: '100.3', value: '1' },
+    ]);
+    assert.equal(result.diagnostics.roadNodeCount, 3);
+    assert.ok(result.segments.length > 0);
+  });
+
+  it('reports insufficient activity points', () => {
+    const result = analyzeCorridors(roads, [{ lat: 13.71, lng: 100.1 }]);
+    assert.equal(result.segments.length, 0);
+    assert.equal(result.diagnostics.reason, 'not-enough-activity-points');
   });
 });
