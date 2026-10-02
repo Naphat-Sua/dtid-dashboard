@@ -334,7 +334,7 @@ const DEFAULT_PARAMS = {
   giWeightType:          'binary',
 };
 
-const CrimeMap = ({ flyToLocation, showHeatmap = true, onMarkerClick }) => {
+const CrimeMap = ({ flyToLocation, showHeatmap = true, onMarkerClick, canAnalyze = false }) => {
   // ── Select only the raw arrays we need — stable references unless data changes ──
   const { locations, cases, drugSeizures, personCases, persons } = useDataStore(useShallow(selectMapData));
   const selectedProvince = useDataStore(s => s.selectedProvince);
@@ -745,7 +745,7 @@ const CrimeMap = ({ flyToLocation, showHeatmap = true, onMarkerClick }) => {
             { id: 'hotspot', label: 'Gi* Hotspot', icon: '📍', desc: 'Statistical clusters' },
             { id: 'all', label: 'All Layers', icon: '🗺️', desc: 'Combined view' },
             { id: 'none', label: 'Base Map', icon: '🧭', desc: 'Markers only — no analysis overlay' },
-          ].map(mode => (
+          ].filter(mode => canAnalyze || ['heatmap', 'none'].includes(mode.id)).map(mode => (
             <button
               key={mode.id}
               onClick={() => setVizMode(mode.id)}
@@ -765,7 +765,7 @@ const CrimeMap = ({ flyToLocation, showHeatmap = true, onMarkerClick }) => {
         </div>
 
         {/* Road-network corridor overlay toggle (independent of mode) */}
-        <div className="mt-2 pt-2" style={{ borderTop: '1px solid var(--border-subtle)' }}>
+        {canAnalyze && <div className="mt-2 pt-2" style={{ borderTop: '1px solid var(--border-subtle)' }}>
           <button
             onClick={() => setShowCorridors(v => !v)}
             className="w-full flex items-center gap-2 px-3 py-1.5 rounded text-xs font-medium transition-colors"
@@ -780,7 +780,7 @@ const CrimeMap = ({ flyToLocation, showHeatmap = true, onMarkerClick }) => {
               <span className="ml-auto text-[10px] font-mono opacity-90">{corridorData.segments.length}</span>
             )}
           </button>
-        </div>
+        </div>}
       </div>
 
       {/* ── Analysis Controls — parameter sliders + stats + methodology ── */}
