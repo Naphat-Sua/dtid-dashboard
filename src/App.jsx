@@ -75,10 +75,11 @@ function AppContent() {
   const logout = useAuthStore((s) => s.logout);
   const hasRole = useAuthStore((s) => s.hasRole);
   const canAdmin = hasRole('Admin');
+  const canAnalyze = hasRole('Analyst');
   // Data source: LOCAL (bundled demo data) vs a live backend session.
   const isLiveDb = useDataStore((s) => s.dbMode !== 'local');
   // Guard: a non-Admin must never land on the data-management view.
-  const effectiveView = activeView === 'admin' && !canAdmin ? 'map' : activeView;
+  const effectiveView = (activeView === 'admin' && !canAdmin) || (activeView === 'network' && !canAnalyze) ? 'map' : activeView;
 
   const handleFlyTo = useCallback((location) => {
     setFlyToLocation(location);
@@ -111,6 +112,7 @@ function AppContent() {
               <CrimeMap
                 flyToLocation={flyToLocation}
                 showHeatmap={showHeatmap}
+                canAnalyze={canAnalyze}
                 onMarkerClick={(loc) => console.log('Marker clicked:', loc)}
               />
             )}
@@ -221,6 +223,7 @@ function AppContent() {
           showHeatmap={showHeatmap}
           onToggleHeatmap={handleToggleHeatmap}
           canAdmin={canAdmin}
+          canAnalyze={canAnalyze}
         />
       </ErrorBoundary>
 
