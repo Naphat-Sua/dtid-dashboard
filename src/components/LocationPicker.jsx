@@ -81,7 +81,7 @@ const LocationPicker = ({
   const defaultZoom = 10;
 
   // Map tile URL
-  const darkTileUrl = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
+  const darkTileUrl = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
 
   const handleLocationSelect = useCallback((location) => {
     onChange && onChange(location);
@@ -189,7 +189,7 @@ const LocationPicker = ({
           zoomControl={false}
         >
           <TileLayer
-            attribution='&copy; OpenStreetMap'
+            attribution='&copy; OpenStreetMap contributors'
             url={darkTileUrl}
           />
           <MapClickHandler onLocationSelect={handleLocationSelect} />
