@@ -39,7 +39,7 @@ const AdminPage = () => {
     }))
   );
   
-  const [activeTab, setActiveTab] = useState('persons'); // 'persons' | 'cases' | 'add-person' | 'add-case'
+  const [activeTab, setActiveTab] = useState('persons'); // 'persons' | 'cases' | 'users' | 'audit' | 'add-person' | 'add-case'
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [editingPerson, setEditingPerson] = useState(null);
   const [editingCase, setEditingCase] = useState(null);
@@ -84,6 +84,20 @@ const AdminPage = () => {
           />
         );
       
+      case 'users':
+        return (
+          <div className="spatial-card rounded-2xl p-6">
+            <h3 className="text-sm font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>User Management</h3>
+            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>บัญชีผู้ใช้จัดการผ่านตาราง api_user ในฐานข้อมูล PostgreSQL ของระบบจริงเท่านั้น รหัสผ่านจัดเก็บเป็น bcrypt hash และไม่ควรใส่บัญชีหรือรหัสผ่านจริงไว้ใน source code หรือชุดข้อมูล Demo</p>
+          </div>
+        );
+      case 'audit':
+        return (
+          <div className="spatial-card rounded-2xl p-6">
+            <h3 className="text-sm font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>Audit Log</h3>
+            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>บันทึกการเปลี่ยนแปลงของระบบจริงจัดเก็บในตาราง audit_log บน PostgreSQL โดยข้อมูล Demo แบบ local ไม่มี audit log จากฐานข้อมูล</p>
+          </div>
+        );
       case 'persons':
         return (
           <div className="spatial-card rounded-2xl overflow-hidden flex flex-col">
@@ -407,6 +421,8 @@ const AdminPage = () => {
           {[
             { id: 'persons', label: 'Persons', icon: Users },
             { id: 'cases', label: 'Cases', icon: FileText },
+            { id: 'users', label: 'User Management', icon: Users },
+            { id: 'audit', label: 'Audit Log', icon: Database },
           ].map(tab => {
             const isActive = activeTab === tab.id || activeTab === `add-${tab.id.slice(0, -1)}`;
             return (
