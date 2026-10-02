@@ -221,16 +221,19 @@ const CsvUploader = ({ onClose, onSuccess }) => {
           {!file && !result && (
             <div className="rounded-xl p-4" style={{ background: 'var(--glass-thin)', border: '1px solid var(--border-subtle)' }}>
               <p className="text-[11px] font-bold mb-2" style={{ letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--text-quaternary)' }}>
-                Required CSV Columns
+                Required CSV Columns (case number + location)
               </p>
               <div className="flex flex-wrap gap-1.5">
-                {['case_number', 'latitude', 'longitude'].map(col => (
+                {['case_number'].map(col => (
                   <span key={col} className="px-2 py-0.5 rounded-md text-[11px] font-mono font-semibold"
                     style={{ background: 'rgba(10, 132, 255, 0.1)', color: 'var(--accent-blue)', border: '1px solid rgba(10, 132, 255, 0.15)' }}>
                     {col}
                   </span>
                 ))}
               </div>
+              <p className="text-[11px] mt-2" style={{ color: 'var(--text-tertiary)' }}>
+                ระบุตำแหน่งด้วย latitude + longitude หรือ address_detail ก็ได้ การแปลงที่อยู่เป็นพิกัดทำงานเมื่อเชื่อมต่อฐานข้อมูลจริง
+              </p>
               <p className="text-[11px] font-bold mt-3 mb-2" style={{ letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--text-quaternary)' }}>
                 Optional Columns
               </p>
