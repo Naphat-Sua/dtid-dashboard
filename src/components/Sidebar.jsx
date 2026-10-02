@@ -26,14 +26,15 @@ const Sidebar = ({
   selectedPersonId,
   showHeatmap,
   onToggleHeatmap,
-  canAdmin = false
+  canAdmin = false,
+  canAnalyze = false
 }) => {
   const [collapsed, setCollapsed] = useState(false);
   const [activeTab, setActiveTab] = useState('stats');
 
   const navItems = [
     { id: 'map', icon: Map, label: 'Crime Map', description: 'Geographic Intelligence' },
-    { id: 'network', icon: Network, label: 'Network', description: 'Link Analysis' },
+    ...(canAnalyze ? [{ id: 'network', icon: Network, label: 'Network', description: 'Link Analysis' }] : []),
   ];
 
   return (
