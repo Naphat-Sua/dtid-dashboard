@@ -217,7 +217,7 @@ const StatsPanel = () => {
         </div>
         <p className="text-xs leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
           Monitoring <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{stats.totalSuspects + stats.totalArrests}</span> individuals
-          across <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{stats.totalCases}</span> active investigations.
+          across <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{stats.activeCases}</span> active of <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{stats.totalCases}</span> cases.
           Primary focus: methamphetamine trafficking networks in Sam Phran District, Nakhon Pathom.
         </p>
       </div>
