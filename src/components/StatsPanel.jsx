@@ -34,6 +34,7 @@ const StatsPanel = () => {
     const scopedSeizures = selectedProvince ? drugSeizures.filter(s => scopedCaseIds.has(s.CaseID)) : drugSeizures;
 
     const totalCases = scopedCases.length;
+    const totalPersons = scopedPersons.length;
     const activeCases = scopedCases.filter(c => c.Status === 'Under Investigation').length;
     const totalArrests = scopedPersons.filter(p => DETAINED_STATUSES.includes(p.Status)).length;
     const totalSuspects = scopedPersons.filter(p => AT_LARGE_STATUSES.includes(p.Status)).length;
@@ -50,7 +51,7 @@ const StatsPanel = () => {
       return acc;
     }, []).sort((a, b) => b.totalQuantity - a.totalQuantity);
 
-    return { totalCases, activeCases, totalArrests, totalSuspects, totalSeizures, drugStats };
+    return { totalCases, totalPersons, activeCases, totalArrests, totalSuspects, totalSeizures, drugStats };
   }, [persons, cases, drugSeizures, locations, personCases, selectedProvince]);
 
   // Get recent cases (last 3) — also scoped to the selected province
@@ -216,7 +217,7 @@ const StatsPanel = () => {
           </span>
         </div>
         <p className="text-xs leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
-          Monitoring <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{stats.totalSuspects + stats.totalArrests}</span> individuals
+          Monitoring <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{stats.totalPersons}</span> individuals
           across <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{stats.activeCases}</span> active of <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{stats.totalCases}</span> cases.
           Primary focus: methamphetamine trafficking networks in Sam Phran District, Nakhon Pathom.
         </p>
