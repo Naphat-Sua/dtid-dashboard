@@ -47,6 +47,11 @@ export const CASE_TYPES = [
   { value: 'Other',         label: 'อื่นๆ' },
 ];
 
+// Record Case only offers narcotics offences; retain legacy values for existing records.
+export const NARCOTICS_CASE_TYPES = CASE_TYPES.filter(
+  type => !['Smuggling', 'Forgery', 'Vehicle Theft'].includes(type.value)
+);
+
 export const CASE_STATUSES = [
   { value: 'Under Investigation', label: 'อยู่ระหว่างสืบสวน' },
   { value: 'Pending',             label: 'รอดำเนินการ' },
