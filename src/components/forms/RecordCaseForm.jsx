@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { useDataStore } from '../../store/useStore';
 import LocationPicker from '../LocationPicker';
-import { CASE_TYPES, CASE_STATUSES as CASE_STATUS } from '../../constants/enums';
+import { NARCOTICS_CASE_TYPES as CASE_TYPES, CASE_STATUSES as CASE_STATUS } from '../../constants/enums';
 
 // Validation schema for seizure (matches DRUG_SEIZURE table)
 const seizureSchema = z.object({
@@ -32,7 +32,8 @@ const seizureSchema = z.object({
 // Validation schema for case (matches CASE table)
 const caseSchema = z.object({
   CaseNumber: z.string().min(1, 'เลขที่คดีจำเป็นต้องระบุ'),
-  CaseType: z.string().min(1, 'ประเภทความผิดจำเป็นต้องระบุ'),
+  CaseType: z.string().min(1, 'ประเภทความผิดจำเป็นต้องระบุ')
+    .refine(value => CASE_TYPES.some(type => type.value === value), 'กรุณาเลือกประเภทความผิดคดียาเสพติด'),
   ArrestDate: z.string().min(1, 'วันที่จับกุมจำเป็นต้องระบุ'),
   Status: z.string().min(1, 'สถานะคดีจำเป็นต้องระบุ'),
   Description: z.string().optional(),
