@@ -76,9 +76,9 @@ const LocationPicker = ({
     if (!value) setAddress('');
   }, [value]);
 
-  // Default center: Chiang Rai
-  const defaultCenter = [20.15, 99.95];
-  const defaultZoom = 10;
+  // Default study area: Sam Phran, Nakhon Pathom, matching CrimeMap.
+  const defaultCenter = [13.726, 100.233];
+  const defaultZoom = 13;
 
   // Map tile URL
   const darkTileUrl = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
