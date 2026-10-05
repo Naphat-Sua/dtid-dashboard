@@ -18,21 +18,13 @@ const loadMockData = async () => {
 // via Zustand persist, or from the database via loadFromDatabase).
 const EMPTY = [];
 
-// Theme Store - persisted to localStorage
-export const useThemeStore = create(
-  persist(
-    (set) => ({
-      theme: 'light', // 'light' | 'dark'
-      toggleTheme: () => set((state) => ({ 
-        theme: state.theme === 'dark' ? 'light' : 'dark' 
-      })),
-      setTheme: (theme) => set({ theme }),
-    }),
-    {
-      name: 'dtid-theme',
-    }
-  )
-);
+// Light mode only while dark-mode map rendering is disabled.
+// Do not hydrate the old dtid-theme preference: returning users may have dark saved.
+export const useThemeStore = create((set) => ({
+  theme: 'light',
+  toggleTheme: () => set({ theme: 'light' }),
+  setTheme: () => set({ theme: 'light' }),
+}));
 
 // ── Role hierarchy for RBAC (mirrors the server) ──
 const ROLE_LEVEL = { Viewer: 1, Analyst: 2, Admin: 3 };
