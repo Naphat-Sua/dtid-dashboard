@@ -1,0 +1,1937 @@
+{
+  "generatedAt": "2026-10-29T05:48:36.906Z",
+  "dataset": {
+    "cases": 216,
+    "persons": 84,
+    "drugSeizures": 208,
+    "casePersons": 328,
+    "relationships": 99,
+    "personLocations": 108,
+    "locations": 324
+  },
+  "parameters": {
+    "kdeBandwidth": null,
+    "kdeKernel": "quartic",
+    "kdeResolution": null,
+    "giDistanceThreshold": null,
+    "giWeightType": "binary",
+    "zoom": 13,
+    "note": "ค่าเริ่มต้นของแผง Analysis: bandwidth/resolution/distance band = Auto, kernel = quartic, weight = binary"
+  },
+  "spatial": {
+    "scope": "ทุกพื้นที่ (ค่าเริ่มต้นของแดชบอร์ด)",
+    "casesInScope": 216,
+    "analysisPoints": 93,
+    "pointValue": {
+      "definition": "value = จำนวนคดี + จำนวนรายการของกลาง ณ พิกัดเดียวกัน (ปัดพิกัด 4 ตำแหน่ง)",
+      "min": 1,
+      "max": 21,
+      "mean": 4.559
+    },
+    "kde": {
+      "kernel": "quartic",
+      "bandwidthKm": 1.255,
+      "bandwidthRule": "Silverman (robust): h = 0.9 × min(σ, IQR/1.34) × n^(-1/5) จำกัดช่วง 1-50 กม.",
+      "resolution": 110,
+      "resolutionRule": "อัตโนมัติตามระดับซูม: round(50 × 1.3^(zoom-10)) ที่ zoom 13",
+      "gridCells": "111 × 111",
+      "cellSizeKm": {
+        "northSouth": 0.191,
+        "eastWest": 0.529
+      },
+      "bounds": {
+        "minLat": 13.6418,
+        "maxLat": 13.8309,
+        "minLng": 99.8665,
+        "maxLng": 100.4051
+      },
+      "weights": "น้ำหนักจุด = value",
+      "maxDensity": 45.8339,
+      "peaks": [
+        {
+          "lat": 13.7003,
+          "lng": 100.2631,
+          "relativeDensity": 1,
+          "nearestSite": "ตลาดใหม่อ้อมใหญ่ ต.อ้อมใหญ่ อ.สามพราน จ.นครปฐม",
+          "subDistrict": "อ้อมใหญ่"
+        },
+        {
+          "lat": 13.714,
+          "lng": 100.2435,
+          "relativeDensity": 0.828,
+          "nearestSite": "ซอยชุมชนท่าข้ามเหนือ ต.ท่าข้าม อ.สามพราน จ.นครปฐม",
+          "subDistrict": "ท่าข้าม"
+        },
+        {
+          "lat": 13.7432,
+          "lng": 100.3268,
+          "relativeDensity": 0.298,
+          "nearestSite": "หมู่ 5 ต.กระทุ่มล้ม อ.สามพราน จ.นครปฐม",
+          "subDistrict": "กระทุ่มล้ม"
+        },
+        {
+          "lat": 13.7295,
+          "lng": 100.2386,
+          "relativeDensity": 0.258,
+          "nearestSite": "หมู่ 15 ต.ยายชา อ.สามพราน จ.นครปฐม",
+          "subDistrict": "ยายชา"
+        },
+        {
+          "lat": 13.7226,
+          "lng": 100.219,
+          "relativeDensity": 0.24,
+          "nearestSite": "ตลาดเทศบาลสามพราน ต.สามพราน อ.สามพราน จ.นครปฐม",
+          "subDistrict": "สามพราน"
+        }
+      ]
+    },
+    "giStar": {
+      "distanceBandKm": 3.225,
+      "distanceRule": "อัตโนมัติ: min(ระยะเพื่อนบ้านใกล้สุดเฉลี่ย × 2.5, เส้นทแยงขอบเขต/4, 15 กม.) ต่ำสุด 1 กม.",
+      "weightType": "binary",
+      "globalMean": 4.559,
+      "globalStdDev": 3.358,
+      "counts": {
+        "hot99": 5,
+        "hot95": 13,
+        "hot90": 8,
+        "cold90": 1,
+        "cold95": 5,
+        "cold99": 0,
+        "notSignificant": 61,
+        "totalHot": 26,
+        "totalCold": 6
+      },
+      "hotspots": [
+        {
+          "site": "หมู่ 15 ต.อ้อมใหญ่ อ.สามพราน จ.นครปฐม",
+          "subDistrict": "อ้อมใหญ่",
+          "district": "สามพราน",
+          "cases": 1,
+          "seizures": 1,
+          "value": 2,
+          "neighbors": 28,
+          "z": 3.102,
+          "p": 0.0019,
+          "confidence": 99
+        },
+        {
+          "site": "หมู่ 8 ต.อ้อมใหญ่ อ.สามพราน จ.นครปฐม",
+          "subDistrict": "อ้อมใหญ่",
+          "district": "สามพราน",
+          "cases": 1,
+          "seizures": 1,
+          "value": 2,
+          "neighbors": 31,
+          "z": 2.916,
+          "p": 0.0035,
+          "confidence": 99
+        },
+        {
+          "site": "หมู่ 3 ต.ไร่ขิง อ.สามพราน จ.นครปฐม",
+          "subDistrict": "ไร่ขิง",
+          "district": "สามพราน",
+          "cases": 4,
+          "seizures": 2,
+          "value": 6,
+          "neighbors": 37,
+          "z": 2.858,
+          "p": 0.0043,
+          "confidence": 99
+        },
+        {
+          "site": "หมู่ 14 ต.ท่าข้าม อ.สามพราน จ.นครปฐม",
+          "subDistrict": "ท่าข้าม",
+          "district": "สามพราน",
+          "cases": 1,
+          "seizures": 1,
+          "value": 2,
+          "neighbors": 40,
+          "z": 2.788,
+          "p": 0.0053,
+          "confidence": 99
+        },
+        {
+          "site": "ร้านเกมย่านถนนไร่ขิง ต.ท่าข้าม อ.สามพราน จ.นครปฐม",
+          "subDistrict": "ท่าข้าม",
+          "district": "สามพราน",
+          "cases": 3,
+          "seizures": 2,
+          "value": 5,
+          "neighbors": 39,
+          "z": 2.645,
+          "p": 0.0082,
+          "confidence": 99
+        },
+        {
+          "site": "หอพักย่านถนนไร่ขิง ต.ไร่ขิง อ.สามพราน จ.นครปฐม",
+          "subDistrict": "ไร่ขิง",
+          "district": "สามพราน",
+          "cases": 4,
+          "seizures": 4,
+          "value": 8,
+          "neighbors": 30,
+          "z": 2.454,
+          "p": 0.0141,
+          "confidence": 95
+        },
+        {
+          "site": "อาคารพาณิชย์ริม ถ.เพชรเกษม ต.อ้อมใหญ่ อ.สามพราน จ.นครปฐม",
+          "subDistrict": "อ้อมใหญ่",
+          "district": "สามพราน",
+          "cases": 2,
+          "seizures": 2,
+          "value": 4,
+          "neighbors": 36,
+          "z": 2.404,
+          "p": 0.0162,
+          "confidence": 95
+        },
+        {
+          "site": "บ้านเช่าในซอยชุมชน ต.อ้อมใหญ่ อ.สามพราน จ.นครปฐม",
+          "subDistrict": "อ้อมใหญ่",
+          "district": "สามพราน",
+          "cases": 2,
+          "seizures": 2,
+          "value": 4,
+          "neighbors": 36,
+          "z": 2.404,
+          "p": 0.0162,
+          "confidence": 95
+        },
+        {
+          "site": "หอพักคนงานซอยตลาดใหม่อ้อมใหญ่ ต.อ้อมใหญ่ อ.สามพราน จ.นครปฐม",
+          "subDistrict": "อ้อมใหญ่",
+          "district": "สามพราน",
+          "cases": 5,
+          "seizures": 5,
+          "value": 10,
+          "neighbors": 36,
+          "z": 2.404,
+          "p": 0.0162,
+          "confidence": 95
+        },
+        {
+          "site": "บ้านพักในซอยหลังตลาดใหม่อ้อมใหญ่ ต.อ้อมใหญ่ อ.สามพราน จ.นครปฐม",
+          "subDistrict": "อ้อมใหญ่",
+          "district": "สามพราน",
+          "cases": 3,
+          "seizures": 2,
+          "value": 5,
+          "neighbors": 35,
+          "z": 2.388,
+          "p": 0.017,
+          "confidence": 95
+        },
+        {
+          "site": "ย่านหอพักคนงานโรงงาน ต.อ้อมใหญ่ อ.สามพราน จ.นครปฐม",
+          "subDistrict": "อ้อมใหญ่",
+          "district": "สามพราน",
+          "cases": 3,
+          "seizures": 3,
+          "value": 6,
+          "neighbors": 35,
+          "z": 2.388,
+          "p": 0.017,
+          "confidence": 95
+        },
+        {
+          "site": "ตลาดใหม่อ้อมใหญ่ ต.อ้อมใหญ่ อ.สามพราน จ.นครปฐม",
+          "subDistrict": "อ้อมใหญ่",
+          "district": "สามพราน",
+          "cases": 10,
+          "seizures": 11,
+          "value": 21,
+          "neighbors": 35,
+          "z": 2.388,
+          "p": 0.017,
+          "confidence": 95
+        },
+        {
+          "site": "หมู่ 5 ต.อ้อมใหญ่ อ.สามพราน จ.นครปฐม",
+          "subDistrict": "อ้อมใหญ่",
+          "district": "สามพราน",
+          "cases": 1,
+          "seizures": 1,
+          "value": 2,
+          "neighbors": 38,
+          "z": 2.253,
+          "p": 0.0243,
+          "confidence": 95
+        },
+        {
+          "site": "จุดตรวจริมทางหลวงชนบท นฐ.3004 ต.ท่าข้าม อ.สามพราน จ.นครปฐม",
+          "subDistrict": "ท่าข้าม",
+          "district": "สามพราน",
+          "cases": 3,
+          "seizures": 3,
+          "value": 6,
+          "neighbors": 40,
+          "z": 2.231,
+          "p": 0.0257,
+          "confidence": 95
+        },
+        {
+          "site": "ปั๊มน้ำมันถนนเพชรเกษม ช่วงอ้อมใหญ่ ต.อ้อมใหญ่ อ.สามพราน จ.นครปฐม",
+          "subDistrict": "อ้อมใหญ่",
+          "district": "สามพราน",
+          "cases": 3,
+          "seizures": 3,
+          "value": 6,
+          "neighbors": 36,
+          "z": 2.216,
+          "p": 0.0267,
+          "confidence": 95
+        },
+        {
+          "site": "ลานจอดรถห้างสรรพสินค้า ถ.เพชรเกษม ต.อ้อมใหญ่ อ.สามพราน จ.นครปฐม",
+          "subDistrict": "อ้อมใหญ่",
+          "district": "สามพราน",
+          "cases": 3,
+          "seizures": 3,
+          "value": 6,
+          "neighbors": 34,
+          "z": 2.182,
+          "p": 0.0291,
+          "confidence": 95
+        },
+        {
+          "site": "หมู่ 2 ต.อ้อมใหญ่ อ.สามพราน จ.นครปฐม",
+          "subDistrict": "อ้อมใหญ่",
+          "district": "สามพราน",
+          "cases": 1,
+          "seizures": 1,
+          "value": 2,
+          "neighbors": 40,
+          "z": 1.984,
+          "p": 0.0473,
+          "confidence": 95
+        },
+        {
+          "site": "หมู่ 7 ต.ท่าข้าม อ.สามพราน จ.นครปฐม",
+          "subDistrict": "ท่าข้าม",
+          "district": "สามพราน",
+          "cases": 2,
+          "seizures": 2,
+          "value": 4,
+          "neighbors": 42,
+          "z": 1.968,
+          "p": 0.049,
+          "confidence": 95
+        },
+        {
+          "site": "หมู่ 10 ต.อ้อมใหญ่ อ.สามพราน จ.นครปฐม",
+          "subDistrict": "อ้อมใหญ่",
+          "district": "สามพราน",
+          "cases": 1,
+          "seizures": 1,
+          "value": 2,
+          "neighbors": 34,
+          "z": 1.929,
+          "p": 0.0537,
+          "confidence": 90
+        },
+        {
+          "site": "ซอยชุมชนท่าข้ามเหนือ ต.ท่าข้าม อ.สามพราน จ.นครปฐม",
+          "subDistrict": "ท่าข้าม",
+          "district": "สามพราน",
+          "cases": 4,
+          "seizures": 2,
+          "value": 6,
+          "neighbors": 40,
+          "z": 1.922,
+          "p": 0.0546,
+          "confidence": 90
+        },
+        {
+          "site": "ตลาดนครชัยศรี ต.นครชัยศรี อ.นครชัยศรี จ.นครปฐม",
+          "subDistrict": "นครชัยศรี",
+          "district": "นครชัยศรี",
+          "cases": 5,
+          "seizures": 6,
+          "value": 11,
+          "neighbors": 0,
+          "z": 1.918,
+          "p": 0.0551,
+          "confidence": 90
+        },
+        {
+          "site": "หมู่ 3 ต.อ้อมใหญ่ อ.สามพราน จ.นครปฐม",
+          "subDistrict": "อ้อมใหญ่",
+          "district": "สามพราน",
+          "cases": 1,
+          "seizures": 1,
+          "value": 2,
+          "neighbors": 36,
+          "z": 1.839,
+          "p": 0.0659,
+          "confidence": 90
+        },
+        {
+          "site": "ซอยบ้านเช่าหลังโรงงาน ต.ท่าข้าม อ.สามพราน จ.นครปฐม",
+          "subDistrict": "ท่าข้าม",
+          "district": "สามพราน",
+          "cases": 3,
+          "seizures": 3,
+          "value": 6,
+          "neighbors": 41,
+          "z": 1.821,
+          "p": 0.0685,
+          "confidence": 90
+        },
+        {
+          "site": "บริเวณตลาดนัดชุมชน ต.ท่าข้าม อ.สามพราน จ.นครปฐม",
+          "subDistrict": "ท่าข้าม",
+          "district": "สามพราน",
+          "cases": 4,
+          "seizures": 5,
+          "value": 9,
+          "neighbors": 39,
+          "z": 1.776,
+          "p": 0.0757,
+          "confidence": 90
+        },
+        {
+          "site": "ริมถนนทางเข้าชุมชนวัดท่าข้าม ต.ท่าข้าม อ.สามพราน จ.นครปฐม",
+          "subDistrict": "ท่าข้าม",
+          "district": "สามพราน",
+          "cases": 3,
+          "seizures": 3,
+          "value": 6,
+          "neighbors": 41,
+          "z": 1.76,
+          "p": 0.0785,
+          "confidence": 90
+        },
+        {
+          "site": "หมู่ 6 ต.อ้อมใหญ่ อ.สามพราน จ.นครปฐม",
+          "subDistrict": "อ้อมใหญ่",
+          "district": "สามพราน",
+          "cases": 4,
+          "seizures": 3,
+          "value": 7,
+          "neighbors": 37,
+          "z": 1.671,
+          "p": 0.0947,
+          "confidence": 90
+        }
+      ],
+      "coldspots": [
+        {
+          "site": "สวนผลไม้ร้าง ต.บางช้าง อ.สามพราน จ.นครปฐม",
+          "subDistrict": "บางช้าง",
+          "district": "สามพราน",
+          "cases": 1,
+          "seizures": 1,
+          "value": 2,
+          "neighbors": 5,
+          "z": -2.169,
+          "p": 0.03,
+          "confidence": 95
+        },
+        {
+          "site": "หมู่ 5 ต.สามพราน อ.สามพราน จ.นครปฐม",
+          "subDistrict": "สามพราน",
+          "district": "สามพราน",
+          "cases": 1,
+          "seizures": 1,
+          "value": 2,
+          "neighbors": 13,
+          "z": -2.132,
+          "p": 0.033,
+          "confidence": 95
+        },
+        {
+          "site": "หมู่ 13 ต.บ้านใหม่ อ.สามพราน จ.นครปฐม",
+          "subDistrict": "บ้านใหม่",
+          "district": "สามพราน",
+          "cases": 1,
+          "seizures": 1,
+          "value": 2,
+          "neighbors": 14,
+          "z": -2.036,
+          "p": 0.0417,
+          "confidence": 95
+        },
+        {
+          "site": "หมู่ 10 ต.สามพราน อ.สามพราน จ.นครปฐม",
+          "subDistrict": "สามพราน",
+          "district": "สามพราน",
+          "cases": 1,
+          "seizures": 0,
+          "value": 1,
+          "neighbors": 15,
+          "z": -2.03,
+          "p": 0.0424,
+          "confidence": 95
+        },
+        {
+          "site": "หมู่ 14 ต.สามพราน อ.สามพราน จ.นครปฐม",
+          "subDistrict": "สามพราน",
+          "district": "สามพราน",
+          "cases": 1,
+          "seizures": 1,
+          "value": 2,
+          "neighbors": 16,
+          "z": -2.027,
+          "p": 0.0427,
+          "confidence": 95
+        },
+        {
+          "site": "หมู่ 2 ต.สามพราน อ.สามพราน จ.นครปฐม",
+          "subDistrict": "สามพราน",
+          "district": "สามพราน",
+          "cases": 1,
+          "seizures": 1,
+          "value": 2,
+          "neighbors": 11,
+          "z": -1.806,
+          "p": 0.071,
+          "confidence": 90
+        }
+      ]
+    },
+    "moransI": {
+      "I": 0.0252,
+      "expectedI": -0.0109,
+      "variance": 0.0019628,
+      "z": 0.813,
+      "p": 0.4162,
+      "pattern": "Random",
+      "distanceBandKm": 3.225,
+      "weights": "binary ภายใน distance band, row-standardized, ไม่รวมตัวเอง",
+      "n": 93
+    },
+    "ann": {
+      "observedKm": 1.29,
+      "expectedKm": 1.6645,
+      "R": 0.775,
+      "z": -4.151,
+      "p": 0.00003318,
+      "pattern": "Clustered",
+      "areaKm2": 1030.685
+    },
+    "corridors": {
+      "method": "สร้างกราฟจากชั้นถนนสามพราน (roadsSampran) → snap จุดที่มี value สูงสุด 12 จุดเข้าโหนดถนนที่ใกล้ที่สุด → Dijkstra ทุกคู่ → นับจำนวนเส้นทางที่ผ่านแต่ละช่วงถนน",
+      "roadNetwork": {
+        "features": 11,
+        "nodes": 66
+      },
+      "inputPoints": [
+        {
+          "site": "ตลาดใหม่อ้อมใหญ่ ต.อ้อมใหญ่ อ.สามพราน จ.นครปฐม",
+          "value": 21,
+          "cases": 10,
+          "seizures": 11
+        },
+        {
+          "site": "บ้านเช่าหมู่บ้านจัดสรร ต.ยายชา อ.สามพราน จ.นครปฐม",
+          "value": 14,
+          "cases": 7,
+          "seizures": 7
+        },
+        {
+          "site": "ชุมชนวัดท่าข้าม ต.ท่าข้าม อ.สามพราน จ.นครปฐม",
+          "value": 14,
+          "cases": 8,
+          "seizures": 6
+        },
+        {
+          "site": "ลานจอดรถบรรทุกถนนพุทธมณฑลสาย 5 ต.ไร่ขิง อ.สามพราน จ.นครปฐม",
+          "value": 12,
+          "cases": 6,
+          "seizures": 6
+        },
+        {
+          "site": "ตลาดนครชัยศรี ต.นครชัยศรี อ.นครชัยศรี จ.นครปฐม",
+          "value": 11,
+          "cases": 5,
+          "seizures": 6
+        },
+        {
+          "site": "หมู่ 9 ต.อ้อมใหญ่ อ.สามพราน จ.นครปฐม",
+          "value": 10,
+          "cases": 5,
+          "seizures": 5
+        },
+        {
+          "site": "หอพักคนงานซอยตลาดใหม่อ้อมใหญ่ ต.อ้อมใหญ่ อ.สามพราน จ.นครปฐม",
+          "value": 10,
+          "cases": 5,
+          "seizures": 5
+        },
+        {
+          "site": "บริเวณตลาดนัดชุมชน ต.ท่าข้าม อ.สามพราน จ.นครปฐม",
+          "value": 9,
+          "cases": 4,
+          "seizures": 5
+        },
+        {
+          "site": "ตลาดหนองแขม แขวงหนองแขม เขตหนองแขม กรุงเทพมหานคร",
+          "value": 9,
+          "cases": 4,
+          "seizures": 5
+        },
+        {
+          "site": "หอพักย่านถนนไร่ขิง ต.ไร่ขิง อ.สามพราน จ.นครปฐม",
+          "value": 8,
+          "cases": 4,
+          "seizures": 4
+        },
+        {
+          "site": "ตลาดเทศบาลสามพราน ต.สามพราน อ.สามพราน จ.นครปฐม",
+          "value": 8,
+          "cases": 4,
+          "seizures": 4
+        },
+        {
+          "site": "ย่านองค์พระปฐมเจดีย์ ต.พระปฐมเจดีย์ อ.เมืองนครปฐม จ.นครปฐม",
+          "value": 8,
+          "cases": 4,
+          "seizures": 4
+        }
+      ],
+      "snappedNodes": 12,
+      "reachablePairs": 55,
+      "candidatePairs": 66,
+      "segmentCount": 38,
+      "byRoad": [
+        {
+          "road": "ถนนเพชรเกษม (ทางหลวงหมายเลข 4)",
+          "segments": 17,
+          "lengthKm": 12.296,
+          "maxCount": 28,
+          "trips": 236
+        },
+        {
+          "road": "ทางเข้าชุมชนวัดท่าข้าม",
+          "segments": 4,
+          "lengthKm": 2.799,
+          "maxCount": 18,
+          "trips": 68
+        },
+        {
+          "road": "ทางหลวง 3316 (สามพราน-หอมเกร็ด)",
+          "segments": 5,
+          "lengthKm": 6.754,
+          "maxCount": 18,
+          "trips": 58
+        },
+        {
+          "road": "ถนนไร่ขิง (เพชรเกษม-วัดไร่ขิง-สาย 5)",
+          "segments": 4,
+          "lengthKm": 3.763,
+          "maxCount": 18,
+          "trips": 56
+        },
+        {
+          "road": "ซอยตลาดใหม่อ้อมใหญ่",
+          "segments": 3,
+          "lengthKm": 1.082,
+          "maxCount": 18,
+          "trips": 38
+        },
+        {
+          "road": "จุดเชื่อมระหว่างถนน",
+          "segments": 2,
+          "lengthKm": 1.955,
+          "maxCount": 18,
+          "trips": 30
+        },
+        {
+          "road": "ซอยชุมชนท่าข้ามเหนือ",
+          "segments": 2,
+          "lengthKm": 0.908,
+          "maxCount": 10,
+          "trips": 20
+        },
+        {
+          "road": "ถนนพุทธมณฑลสาย 5",
+          "segments": 1,
+          "lengthKm": 0.89,
+          "maxCount": 10,
+          "trips": 10
+        }
+      ],
+      "topSegments": [
+        {
+          "road": "ถนนเพชรเกษม (ทางหลวงหมายเลข 4)",
+          "from": [
+            13.719,
+            100.221
+          ],
+          "to": [
+            13.7165,
+            100.2245
+          ],
+          "count": 28,
+          "weight": 1,
+          "lengthKm": 0.469
+        },
+        {
+          "road": "ถนนเพชรเกษม (ทางหลวงหมายเลข 4)",
+          "from": [
+            13.7,
+            100.258
+          ],
+          "to": [
+            13.6985,
+            100.261
+          ],
+          "count": 24,
+          "weight": 0.857,
+          "lengthKm": 0.364
+        },
+        {
+          "road": "ถนนเพชรเกษม (ทางหลวงหมายเลข 4)",
+          "from": [
+            13.7035,
+            100.2505
+          ],
+          "to": [
+            13.7,
+            100.258
+          ],
+          "count": 24,
+          "weight": 0.857,
+          "lengthKm": 0.899
+        },
+        {
+          "road": "ถนนเพชรเกษม (ทางหลวงหมายเลข 4)",
+          "from": [
+            13.707,
+            100.243
+          ],
+          "to": [
+            13.7035,
+            100.2505
+          ],
+          "count": 24,
+          "weight": 0.857,
+          "lengthKm": 0.899
+        },
+        {
+          "road": "ซอยตลาดใหม่อ้อมใหญ่",
+          "from": [
+            13.6985,
+            100.261
+          ],
+          "to": [
+            13.6994,
+            100.2645
+          ],
+          "count": 18,
+          "weight": 0.643,
+          "lengthKm": 0.391
+        },
+        {
+          "road": "ทางหลวง 3316 (สามพราน-หอมเกร็ด)",
+          "from": [
+            13.719,
+            100.221
+          ],
+          "to": [
+            13.729,
+            100.224
+          ],
+          "count": 18,
+          "weight": 0.643,
+          "lengthKm": 1.158
+        },
+        {
+          "road": "ทางเข้าชุมชนวัดท่าข้าม",
+          "from": [
+            13.7145,
+            100.246
+          ],
+          "to": [
+            13.713,
+            100.25
+          ],
+          "count": 18,
+          "weight": 0.643,
+          "lengthKm": 0.463
+        },
+        {
+          "road": "จุดเชื่อมระหว่างถนน",
+          "from": [
+            13.713,
+            100.25
+          ],
+          "to": [
+            13.72,
+            100.255
+          ],
+          "count": 18,
+          "weight": 0.643,
+          "lengthKm": 0.947
+        },
+        {
+          "road": "ถนนไร่ขิง (เพชรเกษม-วัดไร่ขิง-สาย 5)",
+          "from": [
+            13.72,
+            100.255
+          ],
+          "to": [
+            13.7265,
+            100.262
+          ],
+          "count": 18,
+          "weight": 0.643,
+          "lengthKm": 1.046
+        },
+        {
+          "road": "ถนนไร่ขิง (เพชรเกษม-วัดไร่ขิง-สาย 5)",
+          "from": [
+            13.7265,
+            100.262
+          ],
+          "to": [
+            13.731,
+            100.268
+          ],
+          "count": 18,
+          "weight": 0.643,
+          "lengthKm": 0.819
+        }
+      ]
+    }
+  },
+  "spatialNakhonPathom": {
+    "scope": "จังหวัดนครปฐม",
+    "casesInScope": 207,
+    "analysisPoints": 88,
+    "pointValue": {
+      "definition": "value = จำนวนคดี + จำนวนรายการของกลาง ณ พิกัดเดียวกัน (ปัดพิกัด 4 ตำแหน่ง)",
+      "min": 1,
+      "max": 21,
+      "mean": 4.625
+    },
+    "kde": {
+      "kernel": "quartic",
+      "bandwidthKm": 1.207,
+      "bandwidthRule": "Silverman (robust): h = 0.9 × min(σ, IQR/1.34) × n^(-1/5) จำกัดช่วง 1-50 กม.",
+      "resolution": 110,
+      "resolutionRule": "อัตโนมัติตามระดับซูม: round(50 × 1.3^(zoom-10)) ที่ zoom 13",
+      "gridCells": "111 × 111",
+      "cellSizeKm": {
+        "northSouth": 0.166,
+        "eastWest": 0.291
+      },
+      "bounds": {
+        "minLat": 13.6663,
+        "maxLat": 13.8304,
+        "minLng": 100.0489,
+        "maxLng": 100.3458
+      },
+      "weights": "น้ำหนักจุด = value",
+      "maxDensity": 45.9026,
+      "peaks": [
+        {
+          "lat": 13.7006,
+          "lng": 100.2621,
+          "relativeDensity": 1,
+          "nearestSite": "อาคารพาณิชย์ริม ถ.เพชรเกษม ต.อ้อมใหญ่ อ.สามพราน จ.นครปฐม",
+          "subDistrict": "อ้อมใหญ่"
+        },
+        {
+          "lat": 13.714,
+          "lng": 100.2459,
+          "relativeDensity": 0.918,
+          "nearestSite": "ริมถนนทางเข้าชุมชนวัดท่าข้าม ต.ท่าข้าม อ.สามพราน จ.นครปฐม",
+          "subDistrict": "ท่าข้าม"
+        },
+        {
+          "lat": 13.7424,
+          "lng": 100.3296,
+          "relativeDensity": 0.307,
+          "nearestSite": "ตลาดชุมชนกระทุ่มล้ม ต.กระทุ่มล้ม อ.สามพราน จ.นครปฐม",
+          "subDistrict": "กระทุ่มล้ม"
+        },
+        {
+          "lat": 13.7304,
+          "lng": 100.2351,
+          "relativeDensity": 0.271,
+          "nearestSite": "บ้านเช่าหมู่บ้านจัดสรร ต.ยายชา อ.สามพราน จ.นครปฐม",
+          "subDistrict": "ยายชา"
+        },
+        {
+          "lat": 13.723,
+          "lng": 100.2189,
+          "relativeDensity": 0.241,
+          "nearestSite": "ตลาดเทศบาลสามพราน ต.สามพราน อ.สามพราน จ.นครปฐม",
+          "subDistrict": "สามพราน"
+        }
+      ]
+    },
+    "giStar": {
+      "distanceBandKm": 2.452,
+      "distanceRule": "อัตโนมัติ: min(ระยะเพื่อนบ้านใกล้สุดเฉลี่ย × 2.5, เส้นทแยงขอบเขต/4, 15 กม.) ต่ำสุด 1 กม.",
+      "weightType": "binary",
+      "globalMean": 4.625,
+      "globalStdDev": 3.372,
+      "counts": {
+        "hot99": 1,
+        "hot95": 5,
+        "hot90": 10,
+        "cold90": 4,
+        "cold95": 3,
+        "cold99": 0,
+        "notSignificant": 65,
+        "totalHot": 16,
+        "totalCold": 7
+      },
+      "hotspots": [
+        {
+          "site": "ร้านเกมย่านถนนไร่ขิง ต.ท่าข้าม อ.สามพราน จ.นครปฐม",
+          "subDistrict": "ท่าข้าม",
+          "district": "สามพราน",
+          "cases": 3,
+          "seizures": 2,
+          "value": 5,
+          "neighbors": 26,
+          "z": 2.599,
+          "p": 0.0094,
+          "confidence": 99
+        },
+        {
+          "site": "หมู่ 9 ต.อ้อมใหญ่ อ.สามพราน จ.นครปฐม",
+          "subDistrict": "อ้อมใหญ่",
+          "district": "สามพราน",
+          "cases": 5,
+          "seizures": 5,
+          "value": 10,
+          "neighbors": 13,
+          "z": 2.428,
+          "p": 0.0152,
+          "confidence": 95
+        },
+        {
+          "site": "ชุมชนวัดท่าข้าม ต.ท่าข้าม อ.สามพราน จ.นครปฐม",
+          "subDistrict": "ท่าข้าม",
+          "district": "สามพราน",
+          "cases": 8,
+          "seizures": 6,
+          "value": 14,
+          "neighbors": 29,
+          "z": 2.271,
+          "p": 0.0231,
+          "confidence": 95
+        },
+        {
+          "site": "ลานจอดรถอาคารพาณิชย์ ต.ท่าข้าม อ.สามพราน จ.นครปฐม",
+          "subDistrict": "ท่าข้าม",
+          "district": "สามพราน",
+          "cases": 2,
+          "seizures": 2,
+          "value": 4,
+          "neighbors": 31,
+          "z": 2.156,
+          "p": 0.0311,
+          "confidence": 95
+        },
+        {
+          "site": "หมู่ 14 ต.อ้อมใหญ่ อ.สามพราน จ.นครปฐม",
+          "subDistrict": "อ้อมใหญ่",
+          "district": "สามพราน",
+          "cases": 3,
+          "seizures": 4,
+          "value": 7,
+          "neighbors": 17,
+          "z": 2.007,
+          "p": 0.0448,
+          "confidence": 95
+        },
+        {
+          "site": "หมู่ 5 ต.อ้อมใหญ่ อ.สามพราน จ.นครปฐม",
+          "subDistrict": "อ้อมใหญ่",
+          "district": "สามพราน",
+          "cases": 1,
+          "seizures": 1,
+          "value": 2,
+          "neighbors": 33,
+          "z": 1.985,
+          "p": 0.0471,
+          "confidence": 95
+        },
+        {
+          "site": "อาคารพาณิชย์ริม ถ.เพชรเกษม ต.อ้อมใหญ่ อ.สามพราน จ.นครปฐม",
+          "subDistrict": "อ้อมใหญ่",
+          "district": "สามพราน",
+          "cases": 2,
+          "seizures": 2,
+          "value": 4,
+          "neighbors": 30,
+          "z": 1.949,
+          "p": 0.0512,
+          "confidence": 90
+        },
+        {
+          "site": "บ้านเช่าในซอยชุมชน ต.อ้อมใหญ่ อ.สามพราน จ.นครปฐม",
+          "subDistrict": "อ้อมใหญ่",
+          "district": "สามพราน",
+          "cases": 2,
+          "seizures": 2,
+          "value": 4,
+          "neighbors": 30,
+          "z": 1.949,
+          "p": 0.0512,
+          "confidence": 90
+        },
+        {
+          "site": "หอพักคนงานซอยตลาดใหม่อ้อมใหญ่ ต.อ้อมใหญ่ อ.สามพราน จ.นครปฐม",
+          "subDistrict": "อ้อมใหญ่",
+          "district": "สามพราน",
+          "cases": 5,
+          "seizures": 5,
+          "value": 10,
+          "neighbors": 30,
+          "z": 1.949,
+          "p": 0.0512,
+          "confidence": 90
+        },
+        {
+          "site": "หมู่ 8 ต.ยายชา อ.สามพราน จ.นครปฐม",
+          "subDistrict": "ยายชา",
+          "district": "สามพราน",
+          "cases": 2,
+          "seizures": 3,
+          "value": 5,
+          "neighbors": 18,
+          "z": 1.919,
+          "p": 0.0549,
+          "confidence": 90
+        },
+        {
+          "site": "หมู่ 14 ต.ท่าข้าม อ.สามพราน จ.นครปฐม",
+          "subDistrict": "ท่าข้าม",
+          "district": "สามพราน",
+          "cases": 1,
+          "seizures": 1,
+          "value": 2,
+          "neighbors": 32,
+          "z": 1.907,
+          "p": 0.0565,
+          "confidence": 90
+        },
+        {
+          "site": "ตลาดนครชัยศรี ต.นครชัยศรี อ.นครชัยศรี จ.นครปฐม",
+          "subDistrict": "นครชัยศรี",
+          "district": "นครชัยศรี",
+          "cases": 5,
+          "seizures": 6,
+          "value": 11,
+          "neighbors": 0,
+          "z": 1.891,
+          "p": 0.0587,
+          "confidence": 90
+        },
+        {
+          "site": "หมู่ 9 ต.ยายชา อ.สามพราน จ.นครปฐม",
+          "subDistrict": "ยายชา",
+          "district": "สามพราน",
+          "cases": 1,
+          "seizures": 1,
+          "value": 2,
+          "neighbors": 17,
+          "z": 1.773,
+          "p": 0.0763,
+          "confidence": 90
+        },
+        {
+          "site": "ปั๊มน้ำมันถนนเพชรเกษม ช่วงอ้อมใหญ่ ต.อ้อมใหญ่ อ.สามพราน จ.นครปฐม",
+          "subDistrict": "อ้อมใหญ่",
+          "district": "สามพราน",
+          "cases": 3,
+          "seizures": 3,
+          "value": 6,
+          "neighbors": 31,
+          "z": 1.764,
+          "p": 0.0777,
+          "confidence": 90
+        },
+        {
+          "site": "ซอยบ้านเช่าหลังโรงงาน ต.ท่าข้าม อ.สามพราน จ.นครปฐม",
+          "subDistrict": "ท่าข้าม",
+          "district": "สามพราน",
+          "cases": 3,
+          "seizures": 3,
+          "value": 6,
+          "neighbors": 32,
+          "z": 1.648,
+          "p": 0.0994,
+          "confidence": 90
+        },
+        {
+          "site": "หมู่ 7 ต.ท่าข้าม อ.สามพราน จ.นครปฐม",
+          "subDistrict": "ท่าข้าม",
+          "district": "สามพราน",
+          "cases": 2,
+          "seizures": 2,
+          "value": 4,
+          "neighbors": 32,
+          "z": 1.648,
+          "p": 0.0994,
+          "confidence": 90
+        }
+      ],
+      "coldspots": [
+        {
+          "site": "หมู่ 10 ต.สามพราน อ.สามพราน จ.นครปฐม",
+          "subDistrict": "สามพราน",
+          "district": "สามพราน",
+          "cases": 1,
+          "seizures": 0,
+          "value": 1,
+          "neighbors": 11,
+          "z": -2.336,
+          "p": 0.0195,
+          "confidence": 95
+        },
+        {
+          "site": "หมู่ 13 ต.บ้านใหม่ อ.สามพราน จ.นครปฐม",
+          "subDistrict": "บ้านใหม่",
+          "district": "สามพราน",
+          "cases": 1,
+          "seizures": 1,
+          "value": 2,
+          "neighbors": 7,
+          "z": -2.077,
+          "p": 0.0378,
+          "confidence": 95
+        },
+        {
+          "site": "หมู่ 14 ต.สามพราน อ.สามพราน จ.นครปฐม",
+          "subDistrict": "สามพราน",
+          "district": "สามพราน",
+          "cases": 1,
+          "seizures": 1,
+          "value": 2,
+          "neighbors": 9,
+          "z": -2.006,
+          "p": 0.0449,
+          "confidence": 95
+        },
+        {
+          "site": "หมู่ 5 ต.สามพราน อ.สามพราน จ.นครปฐม",
+          "subDistrict": "สามพราน",
+          "district": "สามพราน",
+          "cases": 1,
+          "seizures": 1,
+          "value": 2,
+          "neighbors": 8,
+          "z": -1.932,
+          "p": 0.0533,
+          "confidence": 90
+        },
+        {
+          "site": "สวนผลไม้ร้าง ต.บางช้าง อ.สามพราน จ.นครปฐม",
+          "subDistrict": "บางช้าง",
+          "district": "สามพราน",
+          "cases": 1,
+          "seizures": 1,
+          "value": 2,
+          "neighbors": 4,
+          "z": -1.918,
+          "p": 0.0551,
+          "confidence": 90
+        },
+        {
+          "site": "หมู่ 10 ต.บ้านใหม่ อ.สามพราน จ.นครปฐม",
+          "subDistrict": "บ้านใหม่",
+          "district": "สามพราน",
+          "cases": 1,
+          "seizures": 1,
+          "value": 2,
+          "neighbors": 9,
+          "z": -1.907,
+          "p": 0.0566,
+          "confidence": 90
+        },
+        {
+          "site": "หมู่ 2 ต.สามพราน อ.สามพราน จ.นครปฐม",
+          "subDistrict": "สามพราน",
+          "district": "สามพราน",
+          "cases": 1,
+          "seizures": 1,
+          "value": 2,
+          "neighbors": 10,
+          "z": -1.699,
+          "p": 0.0893,
+          "confidence": 90
+        }
+      ]
+    },
+    "moransI": {
+      "I": 0.0669,
+      "expectedI": -0.0115,
+      "variance": 0.0030813,
+      "z": 1.413,
+      "p": 0.1578,
+      "pattern": "Random",
+      "distanceBandKm": 2.452,
+      "weights": "binary ภายใน distance band, row-standardized, ไม่รวมตัวเอง",
+      "n": 88
+    },
+    "ann": {
+      "observedKm": 0.9808,
+      "expectedKm": 1.1553,
+      "R": 0.849,
+      "z": -2.71,
+      "p": 0.006724,
+      "pattern": "Clustered",
+      "areaKm2": 469.789
+    },
+    "corridors": {
+      "method": "สร้างกราฟจากชั้นถนนสามพราน (roadsSampran) → snap จุดที่มี value สูงสุด 12 จุดเข้าโหนดถนนที่ใกล้ที่สุด → Dijkstra ทุกคู่ → นับจำนวนเส้นทางที่ผ่านแต่ละช่วงถนน",
+      "roadNetwork": {
+        "features": 11,
+        "nodes": 66
+      },
+      "inputPoints": [
+        {
+          "site": "ตลาดใหม่อ้อมใหญ่ ต.อ้อมใหญ่ อ.สามพราน จ.นครปฐม",
+          "value": 21,
+          "cases": 10,
+          "seizures": 11
+        },
+        {
+          "site": "บ้านเช่าหมู่บ้านจัดสรร ต.ยายชา อ.สามพราน จ.นครปฐม",
+          "value": 14,
+          "cases": 7,
+          "seizures": 7
+        },
+        {
+          "site": "ชุมชนวัดท่าข้าม ต.ท่าข้าม อ.สามพราน จ.นครปฐม",
+          "value": 14,
+          "cases": 8,
+          "seizures": 6
+        },
+        {
+          "site": "ลานจอดรถบรรทุกถนนพุทธมณฑลสาย 5 ต.ไร่ขิง อ.สามพราน จ.นครปฐม",
+          "value": 12,
+          "cases": 6,
+          "seizures": 6
+        },
+        {
+          "site": "ตลาดนครชัยศรี ต.นครชัยศรี อ.นครชัยศรี จ.นครปฐม",
+          "value": 11,
+          "cases": 5,
+          "seizures": 6
+        },
+        {
+          "site": "หมู่ 9 ต.อ้อมใหญ่ อ.สามพราน จ.นครปฐม",
+          "value": 10,
+          "cases": 5,
+          "seizures": 5
+        },
+        {
+          "site": "หอพักคนงานซอยตลาดใหม่อ้อมใหญ่ ต.อ้อมใหญ่ อ.สามพราน จ.นครปฐม",
+          "value": 10,
+          "cases": 5,
+          "seizures": 5
+        },
+        {
+          "site": "บริเวณตลาดนัดชุมชน ต.ท่าข้าม อ.สามพราน จ.นครปฐม",
+          "value": 9,
+          "cases": 4,
+          "seizures": 5
+        },
+        {
+          "site": "หอพักย่านถนนไร่ขิง ต.ไร่ขิง อ.สามพราน จ.นครปฐม",
+          "value": 8,
+          "cases": 4,
+          "seizures": 4
+        },
+        {
+          "site": "ตลาดเทศบาลสามพราน ต.สามพราน อ.สามพราน จ.นครปฐม",
+          "value": 8,
+          "cases": 4,
+          "seizures": 4
+        },
+        {
+          "site": "ย่านองค์พระปฐมเจดีย์ ต.พระปฐมเจดีย์ อ.เมืองนครปฐม จ.นครปฐม",
+          "value": 8,
+          "cases": 4,
+          "seizures": 4
+        },
+        {
+          "site": "จุดตรวจถนนเพชรเกษม ช่วงอ้อมใหญ่ ต.อ้อมใหญ่ อ.สามพราน จ.นครปฐม",
+          "value": 8,
+          "cases": 4,
+          "seizures": 4
+        }
+      ],
+      "snappedNodes": 12,
+      "reachablePairs": 66,
+      "candidatePairs": 66,
+      "segmentCount": 38,
+      "byRoad": [
+        {
+          "road": "ถนนเพชรเกษม (ทางหลวงหมายเลข 4)",
+          "segments": 17,
+          "lengthKm": 12.296,
+          "maxCount": 32,
+          "trips": 313
+        },
+        {
+          "road": "ทางเข้าชุมชนวัดท่าข้าม",
+          "segments": 4,
+          "lengthKm": 2.799,
+          "maxCount": 20,
+          "trips": 71
+        },
+        {
+          "road": "ทางหลวง 3316 (สามพราน-หอมเกร็ด)",
+          "segments": 5,
+          "lengthKm": 6.754,
+          "maxCount": 20,
+          "trips": 64
+        },
+        {
+          "road": "ถนนไร่ขิง (เพชรเกษม-วัดไร่ขิง-สาย 5)",
+          "segments": 4,
+          "lengthKm": 3.763,
+          "maxCount": 20,
+          "trips": 62
+        },
+        {
+          "road": "ซอยตลาดใหม่อ้อมใหญ่",
+          "segments": 3,
+          "lengthKm": 1.082,
+          "maxCount": 20,
+          "trips": 42
+        },
+        {
+          "road": "จุดเชื่อมระหว่างถนน",
+          "segments": 2,
+          "lengthKm": 1.955,
+          "maxCount": 20,
+          "trips": 36
+        },
+        {
+          "road": "ซอยชุมชนท่าข้ามเหนือ",
+          "segments": 2,
+          "lengthKm": 0.908,
+          "maxCount": 11,
+          "trips": 22
+        },
+        {
+          "road": "ถนนพุทธมณฑลสาย 5",
+          "segments": 1,
+          "lengthKm": 0.89,
+          "maxCount": 11,
+          "trips": 11
+        }
+      ],
+      "topSegments": [
+        {
+          "road": "ถนนเพชรเกษม (ทางหลวงหมายเลข 4)",
+          "from": [
+            13.7,
+            100.258
+          ],
+          "to": [
+            13.6985,
+            100.261
+          ],
+          "count": 32,
+          "weight": 1,
+          "lengthKm": 0.364
+        },
+        {
+          "road": "ถนนเพชรเกษม (ทางหลวงหมายเลข 4)",
+          "from": [
+            13.7035,
+            100.2505
+          ],
+          "to": [
+            13.7,
+            100.258
+          ],
+          "count": 32,
+          "weight": 1,
+          "lengthKm": 0.899
+        },
+        {
+          "road": "ถนนเพชรเกษม (ทางหลวงหมายเลข 4)",
+          "from": [
+            13.707,
+            100.243
+          ],
+          "to": [
+            13.7035,
+            100.2505
+          ],
+          "count": 32,
+          "weight": 1,
+          "lengthKm": 0.899
+        },
+        {
+          "road": "ถนนเพชรเกษม (ทางหลวงหมายเลข 4)",
+          "from": [
+            13.719,
+            100.221
+          ],
+          "to": [
+            13.7165,
+            100.2245
+          ],
+          "count": 32,
+          "weight": 1,
+          "lengthKm": 0.469
+        },
+        {
+          "road": "ซอยตลาดใหม่อ้อมใหญ่",
+          "from": [
+            13.6985,
+            100.261
+          ],
+          "to": [
+            13.6994,
+            100.2645
+          ],
+          "count": 20,
+          "weight": 0.625,
+          "lengthKm": 0.391
+        },
+        {
+          "road": "ทางหลวง 3316 (สามพราน-หอมเกร็ด)",
+          "from": [
+            13.719,
+            100.221
+          ],
+          "to": [
+            13.729,
+            100.224
+          ],
+          "count": 20,
+          "weight": 0.625,
+          "lengthKm": 1.158
+        },
+        {
+          "road": "ทางเข้าชุมชนวัดท่าข้าม",
+          "from": [
+            13.7145,
+            100.246
+          ],
+          "to": [
+            13.713,
+            100.25
+          ],
+          "count": 20,
+          "weight": 0.625,
+          "lengthKm": 0.463
+        },
+        {
+          "road": "จุดเชื่อมระหว่างถนน",
+          "from": [
+            13.713,
+            100.25
+          ],
+          "to": [
+            13.72,
+            100.255
+          ],
+          "count": 20,
+          "weight": 0.625,
+          "lengthKm": 0.947
+        },
+        {
+          "road": "ถนนไร่ขิง (เพชรเกษม-วัดไร่ขิง-สาย 5)",
+          "from": [
+            13.72,
+            100.255
+          ],
+          "to": [
+            13.7265,
+            100.262
+          ],
+          "count": 20,
+          "weight": 0.625,
+          "lengthKm": 1.046
+        },
+        {
+          "road": "ถนนไร่ขิง (เพชรเกษม-วัดไร่ขิง-สาย 5)",
+          "from": [
+            13.7265,
+            100.262
+          ],
+          "to": [
+            13.731,
+            100.268
+          ],
+          "count": 20,
+          "weight": 0.625,
+          "lengthKm": 0.819
+        }
+      ]
+    }
+  },
+  "autoValuesCheck": {
+    "bandwidth": 1.255,
+    "distanceThreshold": 3.225,
+    "resolutionAtZoom13": 110
+  },
+  "network": {
+    "nodes": 84,
+    "edges": 99,
+    "density": 0.0284,
+    "avgDegree": 2.357,
+    "components": 12,
+    "largestComponent": 73,
+    "isolatedNodes": 11,
+    "normalisation": "degree = จำนวนเพื่อนบ้าน/(n-1); betweenness (Brandes) หารด้วย (n-1)(n-2); keyScore = 0.4·degree + 0.4·betweenness + น้ำหนักความเสี่ยง (Critical 0.2, High 0.15, อื่น 0.05)",
+    "keyPersonsTop5": [
+      {
+        "personId": 402,
+        "name": "ธิดารัตน์ ปานทอง",
+        "alias": null,
+        "risk": "Critical",
+        "status": "Suspect",
+        "degree": 8,
+        "degreeCentrality": 0.0964,
+        "betweenness": 0.2855,
+        "keyScore": 0.3528,
+        "cases": 5,
+        "notes": "ผู้คุมจุดจำหน่ายและกระจายยาให้ลูกข่ายในเครือข่ายอ้อมใหญ่-อ้อมน้อย"
+      },
+      {
+        "personId": 442,
+        "name": "กิตติพงษ์ แสงอรุณ",
+        "alias": "ต้น",
+        "risk": "Critical",
+        "status": "Active",
+        "degree": 3,
+        "degreeCentrality": 0.0361,
+        "betweenness": 0.3076,
+        "keyScore": 0.3375,
+        "cases": 3,
+        "notes": "ผู้ส่งยาล็อตใหญ่ให้เครือข่ายสายตะวันตก (ราชบุรี-นครชัยศรี) รับยาจากชายแดนภาคเหนือ ติดต่อผ่านแอปพลิเคชันแชต"
+      },
+      {
+        "personId": 422,
+        "name": "วีระพงษ์ คงสมบูรณ์",
+        "alias": "เก่ง",
+        "risk": "Critical",
+        "status": "Suspect",
+        "degree": 4,
+        "degreeCentrality": 0.0482,
+        "betweenness": 0.2324,
+        "keyScore": 0.3122,
+        "cases": 1,
+        "notes": "หัวหน้าเครือข่ายตลาดสามพราน สั่งการผ่านลูกน้องโดยตรง ไม่ปรากฏตัวในจุดส่งยา"
+      },
+      {
+        "personId": 433,
+        "name": "วรวุฒิ ทองสุข",
+        "alias": "น็อต",
+        "risk": "Critical",
+        "status": "Suspect",
+        "degree": 7,
+        "degreeCentrality": 0.0843,
+        "betweenness": 0.1796,
+        "keyScore": 0.3056,
+        "cases": 2,
+        "notes": "ผู้คุมจุดจำหน่ายและกระจายยาให้ลูกข่ายในเครือข่ายกระทุ่มล้ม-ศาลายา"
+      },
+      {
+        "personId": 3,
+        "name": "มาลี จันทร์ดี",
+        "alias": "แม่มด",
+        "risk": "Critical",
+        "status": "Active",
+        "degree": 4,
+        "degreeCentrality": 0.0482,
+        "betweenness": 0.1968,
+        "keyScore": 0.298,
+        "cases": 6,
+        "notes": "ผู้จัดหาเงินทุนและฟอกเงิน"
+      }
+    ],
+    "topDegree": [
+      {
+        "personId": 402,
+        "name": "ธิดารัตน์ ปานทอง",
+        "alias": null,
+        "risk": "Critical",
+        "status": "Suspect",
+        "degree": 8,
+        "degreeCentrality": 0.0964,
+        "betweenness": 0.2855,
+        "keyScore": 0.3528,
+        "cases": 5,
+        "notes": "ผู้คุมจุดจำหน่ายและกระจายยาให้ลูกข่ายในเครือข่ายอ้อมใหญ่-อ้อมน้อย"
+      },
+      {
+        "personId": 433,
+        "name": "วรวุฒิ ทองสุข",
+        "alias": "น็อต",
+        "risk": "Critical",
+        "status": "Suspect",
+        "degree": 7,
+        "degreeCentrality": 0.0843,
+        "betweenness": 0.1796,
+        "keyScore": 0.3056,
+        "cases": 2,
+        "notes": "ผู้คุมจุดจำหน่ายและกระจายยาให้ลูกข่ายในเครือข่ายกระทุ่มล้ม-ศาลายา"
+      },
+      {
+        "personId": 423,
+        "name": "กฤษดา ดีประเสริฐ",
+        "alias": null,
+        "risk": "High",
+        "status": "Active",
+        "degree": 7,
+        "degreeCentrality": 0.0843,
+        "betweenness": 0.1274,
+        "keyScore": 0.2347,
+        "cases": 0,
+        "notes": "ผู้คุมจุดจำหน่ายและกระจายยาให้ลูกข่ายในเครือข่ายตลาดสามพราน"
+      },
+      {
+        "personId": 414,
+        "name": "ชุติมา ปัญญาดี",
+        "alias": "ไก่",
+        "risk": "High",
+        "status": "Active",
+        "degree": 6,
+        "degreeCentrality": 0.0723,
+        "betweenness": 0.1968,
+        "keyScore": 0.2576,
+        "cases": 0,
+        "notes": "ผู้คุมจุดจำหน่ายและกระจายยาให้ลูกข่ายในเครือข่ายไร่ขิง-ดอนหวาย"
+      },
+      {
+        "personId": 413,
+        "name": "อภิชาติ สุขเจริญ",
+        "alias": "ตั้ม",
+        "risk": "High",
+        "status": "Suspect",
+        "degree": 6,
+        "degreeCentrality": 0.0723,
+        "betweenness": 0.0811,
+        "keyScore": 0.2114,
+        "cases": 4,
+        "notes": "ผู้คุมจุดจำหน่ายและกระจายยาให้ลูกข่ายในเครือข่ายไร่ขิง-ดอนหวาย"
+      },
+      {
+        "personId": 403,
+        "name": "สุริยา ชื่นใจ",
+        "alias": "จ๊อบ",
+        "risk": "High",
+        "status": "Suspect",
+        "degree": 6,
+        "degreeCentrality": 0.0723,
+        "betweenness": 0.1513,
+        "keyScore": 0.2394,
+        "cases": 4,
+        "notes": "ผู้คุมจุดจำหน่ายและกระจายยาให้ลูกข่ายในเครือข่ายอ้อมใหญ่-อ้อมน้อย"
+      },
+      {
+        "personId": 443,
+        "name": "ภูมินทร์ บุญยืน",
+        "alias": "ลุงแดง",
+        "risk": "High",
+        "status": "Suspect",
+        "degree": 6,
+        "degreeCentrality": 0.0723,
+        "betweenness": 0.1381,
+        "keyScore": 0.2342,
+        "cases": 5,
+        "notes": "ผู้คุมจุดจำหน่ายและกระจายยาให้ลูกข่ายในเครือข่ายสายตะวันตก (ราชบุรี-นครชัยศรี)"
+      },
+      {
+        "personId": 424,
+        "name": "สมพงษ์ กลิ่นหอม",
+        "alias": "แบงค์",
+        "risk": "High",
+        "status": "Active",
+        "degree": 5,
+        "degreeCentrality": 0.0602,
+        "betweenness": 0.0811,
+        "keyScore": 0.2065,
+        "cases": 1,
+        "notes": "ผู้คุมจุดจำหน่ายและกระจายยาให้ลูกข่ายในเครือข่ายตลาดสามพราน"
+      },
+      {
+        "personId": 101,
+        "name": "ธนกร วงศ์ประเสริฐ",
+        "alias": "บอส ธน",
+        "risk": "Critical",
+        "status": "Active",
+        "degree": 4,
+        "degreeCentrality": 0.0482,
+        "betweenness": 0.0399,
+        "keyScore": 0.2352,
+        "cases": 6,
+        "notes": "เจ้าของอู่ซ่อมรถหรู ถูกสงสัยว่าเป็นหัวหน้าขบวนการโจรกรรมรถยนต์หรูเพื่อส่งออก มีความเชื่อมโยงกับกลุ่มค้ารถข้ามชาติ"
+      },
+      {
+        "personId": 401,
+        "name": "ธนวัฒน์ วงศ์ทอง",
+        "alias": "ป๋อง",
+        "risk": "Critical",
+        "status": "Active",
+        "degree": 4,
+        "degreeCentrality": 0.0482,
+        "betweenness": 0.1769,
+        "keyScore": 0.2901,
+        "cases": 3,
+        "notes": "หัวหน้าเครือข่ายอ้อมใหญ่-อ้อมน้อย สั่งการผ่านลูกน้องโดยตรง ไม่ปรากฏตัวในจุดส่งยา"
+      }
+    ],
+    "topBetweenness": [
+      {
+        "personId": 442,
+        "name": "กิตติพงษ์ แสงอรุณ",
+        "alias": "ต้น",
+        "risk": "Critical",
+        "status": "Active",
+        "degree": 3,
+        "degreeCentrality": 0.0361,
+        "betweenness": 0.3076,
+        "keyScore": 0.3375,
+        "cases": 3,
+        "notes": "ผู้ส่งยาล็อตใหญ่ให้เครือข่ายสายตะวันตก (ราชบุรี-นครชัยศรี) รับยาจากชายแดนภาคเหนือ ติดต่อผ่านแอปพลิเคชันแชต"
+      },
+      {
+        "personId": 402,
+        "name": "ธิดารัตน์ ปานทอง",
+        "alias": null,
+        "risk": "Critical",
+        "status": "Suspect",
+        "degree": 8,
+        "degreeCentrality": 0.0964,
+        "betweenness": 0.2855,
+        "keyScore": 0.3528,
+        "cases": 5,
+        "notes": "ผู้คุมจุดจำหน่ายและกระจายยาให้ลูกข่ายในเครือข่ายอ้อมใหญ่-อ้อมน้อย"
+      },
+      {
+        "personId": 422,
+        "name": "วีระพงษ์ คงสมบูรณ์",
+        "alias": "เก่ง",
+        "risk": "Critical",
+        "status": "Suspect",
+        "degree": 4,
+        "degreeCentrality": 0.0482,
+        "betweenness": 0.2324,
+        "keyScore": 0.3122,
+        "cases": 1,
+        "notes": "หัวหน้าเครือข่ายตลาดสามพราน สั่งการผ่านลูกน้องโดยตรง ไม่ปรากฏตัวในจุดส่งยา"
+      },
+      {
+        "personId": 3,
+        "name": "มาลี จันทร์ดี",
+        "alias": "แม่มด",
+        "risk": "Critical",
+        "status": "Active",
+        "degree": 4,
+        "degreeCentrality": 0.0482,
+        "betweenness": 0.1968,
+        "keyScore": 0.298,
+        "cases": 6,
+        "notes": "ผู้จัดหาเงินทุนและฟอกเงิน"
+      },
+      {
+        "personId": 414,
+        "name": "ชุติมา ปัญญาดี",
+        "alias": "ไก่",
+        "risk": "High",
+        "status": "Active",
+        "degree": 6,
+        "degreeCentrality": 0.0723,
+        "betweenness": 0.1968,
+        "keyScore": 0.2576,
+        "cases": 0,
+        "notes": "ผู้คุมจุดจำหน่ายและกระจายยาให้ลูกข่ายในเครือข่ายไร่ขิง-ดอนหวาย"
+      },
+      {
+        "personId": 433,
+        "name": "วรวุฒิ ทองสุข",
+        "alias": "น็อต",
+        "risk": "Critical",
+        "status": "Suspect",
+        "degree": 7,
+        "degreeCentrality": 0.0843,
+        "betweenness": 0.1796,
+        "keyScore": 0.3056,
+        "cases": 2,
+        "notes": "ผู้คุมจุดจำหน่ายและกระจายยาให้ลูกข่ายในเครือข่ายกระทุ่มล้ม-ศาลายา"
+      },
+      {
+        "personId": 401,
+        "name": "ธนวัฒน์ วงศ์ทอง",
+        "alias": "ป๋อง",
+        "risk": "Critical",
+        "status": "Active",
+        "degree": 4,
+        "degreeCentrality": 0.0482,
+        "betweenness": 0.1769,
+        "keyScore": 0.2901,
+        "cases": 3,
+        "notes": "หัวหน้าเครือข่ายอ้อมใหญ่-อ้อมน้อย สั่งการผ่านลูกน้องโดยตรง ไม่ปรากฏตัวในจุดส่งยา"
+      },
+      {
+        "personId": 201,
+        "name": "อาทิตย์ แสงจันทร์",
+        "alias": "อ้ายเสือ",
+        "risk": "Critical",
+        "status": "Active",
+        "degree": 4,
+        "degreeCentrality": 0.0482,
+        "betweenness": 0.1719,
+        "keyScore": 0.2881,
+        "cases": 7,
+        "notes": "ผู้บงการเครือข่ายลักลอบขนสัตว์ป่าและรถยนต์หรูข้ามจังหวัด มีความเชื่อมโยงกับนายทุนเมียนมาร์และลาว ใช้เส้นทางขนส่งจากชายแดนเหนือถึงท่าเรือแหลมฉบัง"
+      },
+      {
+        "personId": 412,
+        "name": "สุริยา ปานทอง",
+        "alias": "กอล์ฟ",
+        "risk": "Critical",
+        "status": "Active",
+        "degree": 3,
+        "degreeCentrality": 0.0361,
+        "betweenness": 0.1681,
+        "keyScore": 0.2817,
+        "cases": 0,
+        "notes": "หัวหน้าเครือข่ายไร่ขิง-ดอนหวาย สั่งการผ่านลูกน้องโดยตรง ไม่ปรากฏตัวในจุดส่งยา"
+      },
+      {
+        "personId": 403,
+        "name": "สุริยา ชื่นใจ",
+        "alias": "จ๊อบ",
+        "risk": "High",
+        "status": "Suspect",
+        "degree": 6,
+        "degreeCentrality": 0.0723,
+        "betweenness": 0.1513,
+        "keyScore": 0.2394,
+        "cases": 4,
+        "notes": "ผู้คุมจุดจำหน่ายและกระจายยาให้ลูกข่ายในเครือข่ายอ้อมใหญ่-อ้อมน้อย"
+      }
+    ]
+  },
+  "stats": {
+    "totalCases": 216,
+    "activeCases": 97,
+    "activeCasesDefinition": "นับเฉพาะ Status = 'Under Investigation' (ตามโค้ด StatsPanel)",
+    "caseStatus": {
+      "Adjudicated": 26,
+      "Under Investigation": 97,
+      "Pending": 21,
+      "Closed": 15,
+      "Filed": 34,
+      "Court": 23
+    },
+    "totalPersons": 84,
+    "arrests": 19,
+    "activeTargets": 63,
+    "seizureBatches": 208,
+    "seizuresByDrugAndUnit": [
+      {
+        "drugType": "Methamphetamine",
+        "unit": "pills",
+        "batches": 121,
+        "totalQuantity": 1039264,
+        "estimatedValueTHB": 96756600
+      },
+      {
+        "drugType": "Crystal Meth",
+        "unit": "g",
+        "batches": 49,
+        "totalQuantity": 8917,
+        "estimatedValueTHB": 13375500
+      },
+      {
+        "drugType": "Heroin",
+        "unit": "kg",
+        "batches": 11,
+        "totalQuantity": 152,
+        "estimatedValueTHB": 147600000
+      },
+      {
+        "drugType": "Crystal Meth",
+        "unit": "kg",
+        "batches": 9,
+        "totalQuantity": 105.7,
+        "estimatedValueTHB": 68150000
+      },
+      {
+        "drugType": "Ketamine",
+        "unit": "g",
+        "batches": 6,
+        "totalQuantity": 2034,
+        "estimatedValueTHB": 2440800
+      },
+      {
+        "drugType": "Heroin",
+        "unit": "g",
+        "batches": 6,
+        "totalQuantity": 2780,
+        "estimatedValueTHB": 2780000
+      },
+      {
+        "drugType": "Ketamine",
+        "unit": "kg",
+        "batches": 3,
+        "totalQuantity": 17.4,
+        "estimatedValueTHB": 20880000
+      },
+      {
+        "drugType": "Ecstasy",
+        "unit": "pills",
+        "batches": 2,
+        "totalQuantity": 60,
+        "estimatedValueTHB": 36000
+      },
+      {
+        "drugType": "Cannabis",
+        "unit": "g",
+        "batches": 1,
+        "totalQuantity": 500,
+        "estimatedValueTHB": 50000
+      }
+    ],
+    "seizureAnalysisAsComputedByUi": [
+      {
+        "type": "Methamphetamine",
+        "unit": "pills",
+        "totalQuantity": "500000.0000200000.000012.000081.000012000.00004000.000018000.000026000.000030000.00002000.000022000.0000600.00008000.000015000.00003500.000040000.00009500.000011000.00007000.0000280.0000810.0000700.0000190.000020.0000150.0000270.00001500.000039.000083.00001800.00008.000018100.00002400.0000230.0000300.0000150.00009.0000660.0000200.000049.000073.0000390.0000100.00001300.00001700.000013.0000280.00001100.00002600.000034.00001500.0000820.000019.00006200.0000480.0000320.000037.000027.000016.0000690.0000410.00009700.000018.000029.00002000.00001800.00009600.000023.0000370.000016.000015.000013.00003500.00003000.000023.00002800.000028.0000180.000015.00001400.0000950.00005800.000024.0000360.00001700.0000210.000012500.00002000.000025.00007.0000620.0000140.000014.0000150.000061.0000260.000024.0000320.0000190.00004400.00001500.00002200.00001700.0000680.0000300.000019.0000400.00001900.000016.000019.00003000.0000560.0000210.0000990.000045.0000200.00001400.0000170.00002500.000020.00002400.0000",
+        "typeofTotal": "string"
+      },
+      {
+        "type": "Crystal Meth",
+        "unit": "kg",
+        "totalQuantity": "50.00001.00001.000038.00002.0000120.0000450.0000200.000090.000016.0000160.0000630.0000470.000041.00006.0000840.0000170.0000340.000015.000024.000068.0000180.000010.0000330.000012.0000400.00002.700093.0000180.000011.0000450.00001.200014.00001.600096.00004.0000780.000084.0000250.0000170.0000100.0000110.0000920.00009.000052.00008.2000220.000084.000092.000039.000011.000059.000075.000056.000014.000032.0000260.000080.0000",
+        "typeofTotal": "string"
+      },
+      {
+        "type": "Heroin",
+        "unit": "kg",
+        "totalQuantity": "100.00001.000015.00001.00001.20004.9000340.0000460.00001.5000610.0000370.0000860.00006.10005.90008.4000140.00007.0000",
+        "typeofTotal": "string"
+      },
+      {
+        "type": "Cannabis",
+        "unit": "g",
+        "totalQuantity": "500.0000",
+        "typeofTotal": "string"
+      },
+      {
+        "type": "Ketamine",
+        "unit": "g",
+        "totalQuantity": "810.0000790.0000110.000083.000091.00006.30002.9000150.00008.2000",
+        "typeofTotal": "string"
+      },
+      {
+        "type": "Ecstasy",
+        "unit": "pills",
+        "totalQuantity": "23.000037.0000",
+        "typeofTotal": "string"
+      }
+    ]
+  }
+}
