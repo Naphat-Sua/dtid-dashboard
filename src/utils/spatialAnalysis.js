@@ -387,6 +387,15 @@ export const performKDE = (points, options = {}) => {
  * @param {number} opacity    — global alpha multiplier 0-1
  * @returns {{ imageData: Uint8ClampedArray, width, height, bounds }}
  */
+/**
+ * Display ramp for normalised KDE values (0-1). Density spans orders of
+ * magnitude (one dense market vs isolated cases), so a linear ramp leaves most
+ * of the surface almost transparent; a log ramp keeps it visible. Only the
+ * colours change; the computed densities do not.
+ */
+const KDE_DISPLAY_GAIN = 100;
+export const kdeDisplayScale = (v) => Math.log1p(KDE_DISPLAY_GAIN * v) / Math.log1p(KDE_DISPLAY_GAIN);
+
 export const kdeToImageData = (kdeResult, colormap = 'fire', opacity = 0.7) => {
   if (!kdeResult || !kdeResult.grid) return null;
 
@@ -402,14 +411,15 @@ export const kdeToImageData = (kdeResult, colormap = 'fire', opacity = 0.7) => {
       // Canvas row 0 = top of image = maxLat, so flip vertically
       const dstRow = (rows - 1 - r);
       const dstIdx = (dstRow * cols + c) * 4;
-      const v = normalised[srcIdx];
+      const raw = normalised[srcIdx];
 
-      if (v < 0.01) {
+      if (raw < 0.01) {
         buf[dstIdx] = buf[dstIdx + 1] = buf[dstIdx + 2] = 0;
         buf[dstIdx + 3] = 0;
         continue;
       }
 
+      const v = kdeDisplayScale(raw);
       const [cr, cg, cb] = colormapLookup(v, colormap);
       const alpha = Math.round(v * opacity * 255);
       buf[dstIdx]     = cr;
