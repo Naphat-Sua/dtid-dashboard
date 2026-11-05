@@ -7,6 +7,8 @@ import {
   performGetisOrdGiStar,
   performKDE,
   performSpatialAnalysis,
+  kdeToImageData,
+  kdeDisplayScale,
 } from './spatialAnalysis.js';
 
 const clustered = [];
@@ -74,5 +76,22 @@ describe('KDE / orchestrator', () => {
   it('performSpatialAnalysis returns kde + giStar + moransI + ann', () => {
     const res = performSpatialAnalysis(clustered);
     for (const k of ['kde', 'giStar', 'moransI', 'ann']) assert.ok(k in res, `missing ${k}`);
+  });
+});
+
+describe('KDE display', () => {
+  const alphaOf = (normalised) => {
+    const img = kdeToImageData({ grid: { normalised: Float64Array.from(normalised), rows: 1, cols: normalised.length }, bounds: {} }, 'fire', 0.7);
+    return normalised.map((_, i) => img.imageData[i * 4 + 3]);
+  };
+  it('keeps the peak at full opacity and the ramp monotonic', () => {
+    assert.equal(kdeDisplayScale(1), 1);
+    assert.ok(kdeDisplayScale(0.05) < kdeDisplayScale(0.2));
+  });
+  it('makes low-density cells visible but leaves near-zero cells transparent', () => {
+    const [peak, low, nearZero] = alphaOf([1, 0.04, 0.005]);
+    assert.equal(peak, Math.round(0.7 * 255));
+    assert.ok(low >= 50, `low-density alpha ${low}`);
+    assert.equal(nearZero, 0);
   });
 });
