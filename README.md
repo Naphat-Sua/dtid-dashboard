@@ -53,8 +53,12 @@ npm install
 npm run dev        # http://localhost:5173
 ```
 
-That's enough to explore the map, analysis, network graph, and admin screens.
-Changes you make (add person, record case) live in the browser session only.
+Without a backend, sign in with the read-only **reviewer** account (credentials
+from the project owner; only their SHA-256 hash is in `src/utils/reviewerAccounts.js`).
+It opens the demo data with the Analyst role: map, KDE / Gi* / Moran's I,
+corridors and the network graph, but no Admin page, CSV import or editing.
+The demo has no one-click role buttons and no Admin role; editing needs the
+API server and a real Admin account.
 
 ## Full‑stack setup (with the API server)
 

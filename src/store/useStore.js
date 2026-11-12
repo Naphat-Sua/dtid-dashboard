@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { dbService } from '../services/dbService';
 import { normalizeAllData } from '../utils/normalizeApi';
+import { matchReviewerAccount } from '../utils/reviewerAccounts';
 
 // ── Mock data is now lazy-loaded, not statically imported ──
 // This removes ~30 KB from the initial bundle.  The mock arrays
@@ -49,6 +50,13 @@ export const useAuthStore = create(
       // Real login against the backend (/api/auth/login).
       login: async (username, password) => {
         set({ isAuthLoading: true, authError: null });
+        // Read-only reviewer account for the website demo: no backend involved.
+        const reviewer = await matchReviewerAccount(username, password);
+        if (reviewer) {
+          get().loginDemo(reviewer.role, { username: reviewer.username, fullName: reviewer.fullName });
+          set({ isAuthLoading: false });
+          return true;
+        }
         try {
           const { user } = await dbService.login(username, password);
           set({ user, refreshToken: dbService.refreshToken, isDemo: false, isAuthenticated: true, isAuthLoading: false });
@@ -58,16 +66,18 @@ export const useAuthStore = create(
             console.error('Initial database load failed:', err));
           return true;
         } catch (e) {
-          set({ authError: e.message || 'เข้าสู่ระบบไม่สำเร็จ', isAuthLoading: false, isAuthenticated: false });
+          // fetch() rejects with a TypeError when no API server is reachable (e.g. the static demo site).
+          const message = e instanceof TypeError ? 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' : (e.message || 'เข้าสู่ระบบไม่สำเร็จ');
+          set({ authError: message, isAuthLoading: false, isAuthenticated: false });
           return false;
         }
       },
 
       // Demo login — pick a role locally (no backend needed, for the offline demo).
-      loginDemo: (role) => {
+      loginDemo: (role, identity = {}) => {
         dbService.clearAuth();
         set({
-          user: { userId: null, username: role.toLowerCase(), fullName: DEMO_NAMES[role] || role, role },
+          user: { userId: null, username: identity.username || role.toLowerCase(), fullName: identity.fullName || DEMO_NAMES[role] || role, role },
           refreshToken: null, isDemo: true, isAuthenticated: true, authError: null,
         });
         // Guarantee the canonical mock dataset in LOCAL mode.
@@ -109,6 +119,11 @@ export const useAuthStore = create(
       // Restore isAuthenticated from persisted user; hand the refresh token to dbService.
       onRehydrateStorage: () => (state) => {
         if (!state) return;
+        // The demo no longer offers an Admin role; drop sessions saved from the old demo buttons.
+        if (state.isDemo && state.user?.role === 'Admin') {
+          state.user = null;
+          state.isDemo = false;
+        }
         if (state.user) state.isAuthenticated = true;
         if (state.refreshToken) dbService.setRefreshToken(state.refreshToken);
       },

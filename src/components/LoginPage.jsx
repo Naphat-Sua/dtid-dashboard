@@ -1,17 +1,9 @@
 import React, { useState } from 'react';
-import { Shield, Lock, User, LogIn, AlertTriangle, Eye, BarChart3, Database } from 'lucide-react';
+import { Shield, Lock, User, LogIn, AlertTriangle } from 'lucide-react';
 import { useAuthStore } from '../store/useStore';
-
-// Demo roles surfaced as one-click buttons (works offline, no backend).
-const DEMO_ROLES = [
-  { role: 'Admin',   icon: Database,  label: 'ผู้ดูแลระบบ',    desc: 'เพิ่ม/แก้ไข/ลบ + นำเข้า CSV', accent: 'var(--accent-purple)' },
-  { role: 'Analyst', icon: BarChart3, label: 'นักวิเคราะห์',   desc: 'วิเคราะห์ KDE/Gi* + เครือข่าย', accent: 'var(--accent-blue)' },
-  { role: 'Viewer',  icon: Eye,       label: 'ผู้บังคับบัญชา', desc: 'ดูแผนที่/สถิติ (อ่านอย่างเดียว)', accent: 'var(--accent-green)' },
-];
 
 const LoginPage = () => {
   const login = useAuthStore((s) => s.login);
-  const loginDemo = useAuthStore((s) => s.loginDemo);
   const authError = useAuthStore((s) => s.authError);
   const isAuthLoading = useAuthStore((s) => s.isAuthLoading);
 
@@ -82,40 +74,8 @@ const LoginPage = () => {
           </button>
         </form>
 
-        {/* Divider */}
-        <div className="flex items-center gap-3 my-5">
-          <div className="flex-1 h-px" style={{ background: 'var(--border-subtle)' }} />
-          <span className="text-[10px] font-semibold uppercase" style={{ color: 'var(--text-quaternary)', letterSpacing: '0.08em' }}>
-            หรือเข้าโหมดสาธิต
-          </span>
-          <div className="flex-1 h-px" style={{ background: 'var(--border-subtle)' }} />
-        </div>
-
-        {/* Demo role quick-access */}
-        <div className="space-y-2">
-          {DEMO_ROLES.map((r) => (
-            <button key={r.role} onClick={() => loginDemo(r.role)}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-left transition-all duration-300"
-              style={{ background: 'var(--glass-thin)', border: '1px solid var(--border-subtle)' }}
-              onMouseOver={(e) => { e.currentTarget.style.borderColor = r.accent; }}
-              onMouseOut={(e) => { e.currentTarget.style.borderColor = 'var(--border-subtle)'; }}>
-              <div className="p-2 rounded-xl" style={{ background: 'var(--glass-regular)' }}>
-                <r.icon className="w-4 h-4" style={{ color: r.accent }} />
-              </div>
-              <div className="flex-1">
-                <span className="text-[13px] font-semibold block" style={{ color: 'var(--text-primary)' }}>{r.label}</span>
-                <span className="text-[10px]" style={{ color: 'var(--text-quaternary)' }}>{r.desc}</span>
-              </div>
-              <span className="text-[9px] font-bold px-2 py-0.5 rounded-md uppercase"
-                style={{ background: `color-mix(in srgb, ${r.accent} 12%, transparent)`, color: r.accent }}>
-                {r.role}
-              </span>
-            </button>
-          ))}
-        </div>
-
         <p className="text-[10px] text-center mt-5" style={{ color: 'var(--text-quaternary)' }}>
-          บัญชีสาธิต: admin / analyst / viewer (รหัส …1234) เมื่อเชื่อมต่อฐานข้อมูลจริง
+          ผู้ตรวจระบบ: ใช้ชื่อผู้ใช้และรหัสผ่านที่ได้รับจากผู้พัฒนา (สิทธิ์ดูอย่างเดียว)
         </p>
       </div>
     </div>
