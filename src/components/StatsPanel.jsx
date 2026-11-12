@@ -15,6 +15,7 @@ import {
 import { useDataStore } from '../store/useStore';
 import { useShallow } from 'zustand/react/shallow';
 import { filterCasesByProvince, getPersonIdsForCases } from '../utils/provinceFilter';
+import { summarizeSeizuresByDrug } from '../utils/seizureTotals';
 import { AT_LARGE_STATUSES, DETAINED_STATUSES, CASE_TYPES, CASE_STATUSES, labelFor } from '../constants/enums';
 
 const StatsPanel = () => {
@@ -40,16 +41,8 @@ const StatsPanel = () => {
     const totalSuspects = scopedPersons.filter(p => AT_LARGE_STATUSES.includes(p.Status)).length;
     const totalSeizures = scopedSeizures.length;
 
-    // Drug seizure stats
-    const drugStats = scopedSeizures.reduce((acc, s) => {
-      const existing = acc.find(d => d.type === s.DrugType);
-      if (existing) {
-        existing.totalQuantity += s.Quantity;
-      } else {
-        acc.push({ type: s.DrugType, totalQuantity: s.Quantity, unit: s.Unit });
-      }
-      return acc;
-    }, []).sort((a, b) => b.totalQuantity - a.totalQuantity);
+    // Drug seizure stats (units converted before summing)
+    const drugStats = summarizeSeizuresByDrug(scopedSeizures);
 
     return { totalCases, totalPersons, activeCases, totalArrests, totalSuspects, totalSeizures, drugStats };
   }, [persons, cases, drugSeizures, locations, personCases, selectedProvince]);
@@ -66,7 +59,7 @@ const StatsPanel = () => {
   const formatNumber = (num) => {
     if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
     if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
-    return num.toString();
+    return Number(num.toFixed(2)).toString();
   };
 
   // Drug type living colors
