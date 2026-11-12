@@ -1,9 +1,11 @@
 // ============================================================
 // End-to-end checks of the website demo mode (LOCAL data, no backend).
 //
-//   BASE_URL=http://localhost:4173 node --test e2e/demo.e2e.mjs          (after `npm run build && npm run preview`)
-//   BASE_URL=https://<your-app>.vercel.app node --test e2e/demo.e2e.mjs  (deployed site)
+//   REVIEWER_USER=... REVIEWER_PASS=... BASE_URL=http://localhost:4173 node --test e2e/demo.e2e.mjs
+//   REVIEWER_USER=... REVIEWER_PASS=... BASE_URL=https://<your-app>.vercel.app node --test e2e/demo.e2e.mjs
 //
+// REVIEWER_USER / REVIEWER_PASS are the read-only reviewer credentials
+// (src/utils/reviewerAccounts.js stores only their hash).
 // Needs the `playwright` package and a Chromium build (`npx playwright install chromium`).
 // Not picked up by `npm test`: the file name does not match node --test's default patterns.
 // Expected values come from the 220-case demo dataset (server/demo-data/README.md).
@@ -15,21 +17,25 @@ import { createRequire } from 'node:module';
 
 const { chromium } = createRequire(import.meta.url)('playwright');
 const BASE_URL = process.env.BASE_URL || 'http://localhost:4173';
+const { REVIEWER_USER, REVIEWER_PASS } = process.env;
 
 let browser;
-before(async () => { browser = await chromium.launch(); });
+before(async () => {
+  assert.ok(REVIEWER_USER && REVIEWER_PASS, 'set REVIEWER_USER and REVIEWER_PASS');
+  browser = await chromium.launch();
+});
 after(async () => { await browser?.close(); });
 
 /** Fresh context per test; map tiles are blocked so tests do not depend on OSM. */
-async function openPage(initState) {
+async function openPage(initStorage) {
   const context = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
-  if (initState) {
-    await context.addInitScript((s) => {
+  if (initStorage) {
+    await context.addInitScript((entries) => {
       if (!sessionStorage.getItem('e2e-seeded')) {
-        localStorage.setItem('dtid-data-store', s);
+        for (const [key, value] of Object.entries(entries)) localStorage.setItem(key, value);
         sessionStorage.setItem('e2e-seeded', '1');
       }
-    }, initState);
+    }, initStorage);
   }
   const page = await context.newPage();
   const errors = [];
@@ -39,8 +45,13 @@ async function openPage(initState) {
   return { page, context, errors };
 }
 
-const demoLogin = async (page, label) => {
-  await page.locator('button', { hasText: label }).first().click();
+const submitLogin = async (page, user, pass) => {
+  await page.fill('input[autocomplete=username]', user);
+  await page.fill('input[autocomplete=current-password]', pass);
+  await page.locator('button[type=submit]').click();
+};
+const reviewerLogin = async (page) => {
+  await submitLogin(page, REVIEWER_USER, REVIEWER_PASS);
   await page.getByText(/of \d+ total/).first().waitFor({ timeout: 20000 });
 };
 const bodyText = (page) => page.locator('body').innerText();
@@ -53,31 +64,40 @@ const storeCounts = (page) => page.evaluate(() => {
   return [s.cases.length, s.persons.length, s.drugSeizures.length, s.personNetwork.length];
 });
 
-test('login page offers the three demo roles', async () => {
+test('login page shows only the sign-in form, no demo role buttons', async () => {
   const { page, context, errors } = await openPage();
+  assert.equal(await page.locator('input[autocomplete=username]').count(), 1);
   for (const label of ['ผู้ดูแลระบบ', 'นักวิเคราะห์', 'ผู้บังคับบัญชา']) {
-    assert.equal(await page.locator('button', { hasText: label }).count() > 0, true, label);
+    assert.equal(await page.locator('button', { hasText: label }).count(), 0, label);
   }
   assert.deepEqual(errors, []);
   await context.close();
 });
 
-test('analyst demo: dashboard stats reflect the 220-case dataset', async () => {
+test('a wrong password is rejected', async () => {
+  const { page, context } = await openPage();
+  await submitLogin(page, REVIEWER_USER, `${REVIEWER_PASS}x`);
+  await page.getByText('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง').waitFor({ timeout: 10000 });
+  assert.doesNotMatch(await bodyText(page), /of \d+ total/);
+  await context.close();
+});
+
+test('reviewer: dashboard stats reflect the 220-case dataset', async () => {
   const { page, context, errors } = await openPage();
-  await demoLogin(page, 'นักวิเคราะห์');
+  await reviewerLogin(page);
   assert.deepEqual(await storeCounts(page), [220, 121, 236, 80]);
   const text = await bodyText(page);
   assert.match(text, /of 220 total/);
   assert.match(text, /ACTIVE CASES\s*156/i);
   assert.match(text, /SEIZURES\s*236/i);
-  assert.match(text, /Methamphetamine/);
+  assert.match(text, /ANALYST/);
   assert.deepEqual(errors, []);
   await context.close();
 });
 
-test('analyst demo: KDE, Gi*, Moran\'s I and corridors match the recorded results', async () => {
+test('reviewer: KDE, Gi*, Moran\'s I and corridors match the recorded results', async () => {
   const { page, context, errors } = await openPage();
-  await demoLogin(page, 'นักวิเคราะห์');
+  await reviewerLogin(page);
   await clickButton(page, 'KDE Surface', 4000);
   let text = await bodyText(page);
   assert.match(text, /Bandwidth:\s*1\.1\d km/, 'KDE bandwidth ≈ 1.125 km');
@@ -89,7 +109,6 @@ test('analyst demo: KDE, Gi*, Moran\'s I and corridors match the recorded result
   assert.match(text, /Points:\s*201/);
   assert.match(text, /Dist\. threshold:\s*1\.43 km/);
   assert.match(text, /Moran's I[\s\S]*CLUSTERED[\s\S]*0\.157/i);
-  // Hotspot tiles read 99% / 95% / 90% counts in order.
   assert.match(text, /Hotspots\s*14\s*99%\s*23\s*95%\s*7\s*90%/);
 
   await clickButton(page, 'Base Map');
@@ -99,9 +118,9 @@ test('analyst demo: KDE, Gi*, Moran\'s I and corridors match the recorded result
   await context.close();
 });
 
-test('analyst demo: network view shows 121 nodes and the expected key persons', async () => {
+test('reviewer: network view shows 121 nodes and the expected key persons', async () => {
   const { page, context, errors } = await openPage();
-  await demoLogin(page, 'นักวิเคราะห์');
+  await reviewerLogin(page);
   await clickButton(page, 'Network', 6000);
   const text = await bodyText(page);
   assert.match(text, /Nodes\s*121/);
@@ -114,9 +133,9 @@ test('analyst demo: network view shows 121 nodes and the expected key persons', 
   await context.close();
 });
 
-test('targets list finds a new and an original person', async () => {
+test('reviewer: targets list finds a new and an original person', async () => {
   const { page, context, errors } = await openPage();
-  await demoLogin(page, 'นักวิเคราะห์');
+  await reviewerLogin(page);
   await clickButton(page, 'Targets', 1500);
   const search = page.getByPlaceholder('Search name, alias, or National ID...');
   await search.fill('เกรียงไกร');
@@ -129,37 +148,30 @@ test('targets list finds a new and an original person', async () => {
   await context.close();
 });
 
-test('admin demo: data management lists 220 cases including old and new case numbers', async () => {
+test('reviewer is read-only: no Admin page, CSV import or edit controls', async () => {
   const { page, context, errors } = await openPage();
-  await demoLogin(page, 'ผู้ดูแลระบบ');
-  await clickButton(page, 'Admin', 3000);
-  let text = await bodyText(page);
-  assert.match(text, /121 Persons · 220 Cases · 236 Seizures/);
-  await clickButton(page, 'Cases', 2500);
-  text = await bodyText(page);
-  assert.match(text, /Cases Database \(220\)/);
-  assert.match(text, /NCB-CR-2569-1001/);
-  assert.match(text, /NCB-CR-2568-0304/);
-  assert.deepEqual(errors, []);
-  await context.close();
-});
-
-test('viewer demo: read-only role has no Network or Admin access', async () => {
-  const { page, context, errors } = await openPage();
-  await demoLogin(page, 'ผู้บังคับบัญชา');
-  assert.equal(await page.locator('button', { hasText: 'Network' }).count(), 0);
+  await reviewerLogin(page);
   assert.equal(await page.locator('button', { hasText: /^\s*Admin\s*$/ }).count(), 0);
-  assert.match(await bodyText(page), /of 220 total/);
+  assert.equal(await page.locator('button[title="Import CSV Cases"]').count(), 0);
+  assert.equal(await page.locator('button', { hasText: /แก้ไข|ลบ|เพิ่ม|Edit|Delete|Add /i }).count(), 0);
   assert.deepEqual(errors, []);
   await context.close();
 });
 
-test('a browser holding the old 36-case cache gets the 220-case data after demo login', async () => {
+test('a demo Admin session saved by the old demo buttons is signed out', async () => {
+  const oldAuth = JSON.stringify({ state: { user: { userId: null, username: 'admin', fullName: 'ผู้ดูแลระบบ (Demo)', role: 'Admin' }, refreshToken: null, isDemo: true }, version: 0 });
+  const { page, context } = await openPage({ 'dtid-auth': oldAuth });
+  assert.equal(await page.locator('input[autocomplete=username]').count(), 1);
+  assert.equal(await page.locator('button', { hasText: /^\s*Admin\s*$/ }).count(), 0);
+  await context.close();
+});
+
+test('a browser holding the old 36-case cache gets the 220-case data after sign-in', async () => {
   const oldState = JSON.stringify({ state: { persons: [{ PersonID: 1 }], cases: Array.from({ length: 36 }, (_, i) => ({ CaseID: i + 1 })), drugSeizures: [], locations: [], personCases: [], personNetwork: [], personContacts: [], personLocations: [] }, version: 4 });
-  const { page, context } = await openPage(oldState);
+  const { page, context } = await openPage({ 'dtid-data-store': oldState });
   assert.equal((await storeCounts(page))[0], 36);
-  await demoLogin(page, 'นักวิเคราะห์');
-  // The stale cache renders first; demo login then loads the mock dataset asynchronously.
+  await reviewerLogin(page);
+  // The stale cache renders first; sign-in then loads the mock dataset asynchronously.
   await page.waitForFunction(() => JSON.parse(localStorage.getItem('dtid-data-store')).state.cases.length === 220, null, { timeout: 10000 });
   assert.deepEqual(await storeCounts(page), [220, 121, 236, 80]);
   await page.getByText('of 220 total').first().waitFor({ timeout: 5000 });
@@ -168,9 +180,9 @@ test('a browser holding the old 36-case cache gets the 220-case data after demo 
 
 test('logout returns to the login page', async () => {
   const { page, context, errors } = await openPage();
-  await demoLogin(page, 'นักวิเคราะห์');
+  await reviewerLogin(page);
   await page.locator('button[title="ออกจากระบบ (Logout)"]').click();
-  await page.locator('button', { hasText: 'นักวิเคราะห์' }).first().waitFor({ timeout: 10000 });
+  await page.locator('input[autocomplete=username]').waitFor({ timeout: 10000 });
   assert.deepEqual(errors, []);
   await context.close();
 });
