@@ -568,9 +568,9 @@ const AnalysisControls = ({
                         <span style={{ color: 'var(--text-tertiary)' }}>NN Ratio (R):</span>
                         <span className="font-mono text-right" style={{ color: 'var(--text-primary)' }}>{ann.nnRatio?.toFixed(3)}</span>
                         <span style={{ color: 'var(--text-tertiary)' }}>Observed:</span>
-                        <span className="font-mono text-right" style={{ color: 'var(--text-primary)' }}>{ann.observedMeanDistance?.toFixed(2)} km</span>
+                        <span className="font-mono text-right" style={{ color: 'var(--text-primary)' }}>{ann.observedMeanDistance?.toFixed(4)} km</span>
                         <span style={{ color: 'var(--text-tertiary)' }}>Expected:</span>
-                        <span className="font-mono text-right" style={{ color: 'var(--text-primary)' }}>{ann.expectedMeanDistance?.toFixed(2)} km</span>
+                        <span className="font-mono text-right" style={{ color: 'var(--text-primary)' }}>{ann.expectedMeanDistance?.toFixed(4)} km</span>
                         <span style={{ color: 'var(--text-tertiary)' }}>Z-score:</span>
                         <span className="font-mono text-right" style={{ color: 'var(--text-primary)' }}>{ann.zScore?.toFixed(2)}</span>
                       </div>

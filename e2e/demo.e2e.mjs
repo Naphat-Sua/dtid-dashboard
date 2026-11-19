@@ -103,6 +103,8 @@ test('reviewer: KDE, Gi*, Moran\'s I and corridors match the recorded results', 
   assert.match(text, /Bandwidth:\s*1\.1\d km/, 'KDE bandwidth ≈ 1.125 km');
   assert.match(text, /Grid:\s*111×111/);
   assert.match(text, /Max density:\s*40\.04/);
+  assert.match(text, /Observed:\s*0\.5736 km/, 'ANN observed mean distance, 4 decimals');
+  assert.match(text, /Expected:\s*0\.9651 km/, 'ANN expected mean distance, 4 decimals');
 
   await clickButton(page, 'Gi* Hotspot', 4000);
   text = await bodyText(page);
